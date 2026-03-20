@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dial-up Era Animation</title>
+    <style>
+        :root {
+            --color-digital: #2EB4FF; /* Light Blue - Digital Data */
+            --color-modem: #0075DB;   /* Dark Blue - Modem/Active */
+            --color-analog: #757D86;  /* Gray - Analog/Voice */
+            --color-dark: #181D24;    /* Dark - Text/Hardware */
+            --color-bg: #FFFFFF;
+            --color-error: #E74C3C;   /* Red for collision */
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--color-bg);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            color: var(--color-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stage {
+            flex-grow: 1;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            max-height: 65vh;
+            filter: drop-shadow(0 20px 30px rgba(24, 29, 36, 0.05));
+        }
+
+        .ui-panel {
+            background: var(--color-bg);
+            border-top: 4px solid var(--color-modem);
+            box-shadow: 0 -10px 40px rgba(117, 125, 134, 0.15);
+            padding: 2rem;
+            border-radius: 24px 24px 0 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-height: 220px;
+        }
+
+        .step-indicator {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--color-analog);
+            opacity: 0.3;
+            transition: all 0.3s ease;
+        }
+
+        .dot.active {
+            background-color: var(--color-digital);
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        .dot.completed {
+            background-color: var(--color-modem);
+            opacity: 1;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: var(--color-modem);
+        }
+
+        p {
+            margin: 0;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: var(--color-analog);
+            flex-grow: 1;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+
+        button {
+            background-color: var(--color-modem);
+            color: var(--color-bg);
+            border: none;
+            padding: 12px 32px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 117, 219, 0.3);
+        }
+
+        button:hover {
+            background-color: var(--color-digital);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(46, 180, 255, 0.4);
+        }
+
+        button:disabled {
+            background-color: var(--color-analog);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            opacity: 0.7;
+        }
+
+        .isometric-hover {
+            transition: transform 0.3s ease;
+        }
+        g:hover > .isometric-hover {
+            transform: translateY(-8px);
+        }
+
+        /* Phone Ringing Animation */
+        @keyframes ring {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(10deg); }
+            50% { transform: rotate(-10deg); }
+            75% { transform: rotate(10deg); }
+            100% { transform: rotate(0deg); }
+        }
+        .ringing {
+            animation: ring 0.5s ease infinite;
+            transform-origin: center;
+        }
+
+        /* Wave Animation */
+        @keyframes flowWave {
+            to { stroke-dashoffset: -40; }
+        }
+        .wave-flow {
+            stroke-dasharray: 10 10;
+            animation: flowWave 1s linear infinite;
+        }
+
+        /* Floating tooltips */
+        .tooltip {
+            opacity: 0;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="stage">
+        <!-- SVG Canvas (1200x800) -->
+        <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet">
+            <defs>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+                <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+                    <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#181D24" flood-opacity="0.15"/>
+                </filter>
+                
+                <!-- Analog Wave Path Template -->
+                <path id="sine-wave" d="M 0 0 Q 15 -25 30 0 T 60 0 T 90 0 T 120 0" fill="none" stroke-width="4" stroke-linecap="round"/>
+            </defs>
+
+            <!-- ===================== DOM ORDER 1: WIRES ===================== -->
+            <!-- PC to Modem (Digital Cable) -->
+            <path d="M 250 250 L 500 450" stroke="#2EB4FF" stroke-width="4" stroke-dasharray="8 6" fill="none" opacity="0.6" />
+            <!-- Phone to Modem/Wall (Analog Cable) -->
+            <path d="M 250 650 L 500 450" stroke="#757D86" stroke-width="4" fill="none" opacity="0.6" />
+            <!-- Modem to ISP (The Shared Analog Phone Line) -->
+            <path id="main-line" d="M 500 450 L 950 450" stroke="#181D24" stroke-width="6" fill="none" opacity="0.2" />
+
+
+            <!-- ===================== DOM ORDER 2: PC (Top Left) ===================== -->
+            <g transform="translate(250, 250)">
+                <g class="isometric-hover">
+                    <g transform="scale(0.8)">
+                        <!-- Shadow -->
+                        <polygon points="-100,10 0,60 100,10 0,-40" fill="rgba(24, 29, 36, 0.1)"/>
+                        
+                        <!-- Base -->
+                        <polygon points="0,15 100,-35 100,-25 0,25" fill="#0075DB" />
+                        <polygon points="-100,-35 0,15 0,25 -100,-25" fill="#181D24" />
+                        <polygon points="-100,-35 0,15 100,-35 0,-85" fill="#757D86" />
+                        <polygon points="-80,-40 -5,-3 70,-40 -5,-77" fill="#181D24" opacity="0.6" />
+                        
+                        <!-- Screen -->
+                        <polygon points="-100,-35 0,-85 0,-195 -100,-145" fill="#181D24" />
+                        <polygon id="pc-screen" points="-95,-43 -5,-88 -5,-187 -95,-142" fill="#757D86" style="transition: fill 0.5s ease;" /> 
+                        
+                        <text x="0" y="-235" font-family="system-ui" font-size="24" font-weight="bold" fill="#181D24" text-anchor="middle">מחשב (דיגיטלי)</text>
+                    </g>
+                </g>
+            </g>
+
+            <!-- ===================== DOM ORDER 3: TELEPHONE (Bottom Left) ===================== -->
+            <g transform="translate(250, 650)">
+                <g id="phone-group" class="isometric-hover">
+                    <g transform="scale(0.8)">
+                        <polygon points="-70,10 0,45 70,10 0,-25" fill="rgba(24, 29, 36, 0.1)"/>
+                        
+                        <!-- Phone Base -->
+                        <polygon points="0,15 70,-20 70,-10 0,25" fill="#757D86" />
+                        <polygon points="-70,-20 0,15 0,25 -70,-10" fill="#181D24" />
+                        <polygon points="-70,-20 0,15 70,-20 0,-55" fill="#FFFFFF" />
+                        
+                        <!-- Dial Pad -->
+                        <g transform="translate(0, -15)">
+                            <circle cx="-20" cy="0" r="4" fill="#757D86"/> <circle cx="0" cy="-10" r="4" fill="#757D86"/> <circle cx="20" cy="-20" r="4" fill="#757D86"/>
+                            <circle cx="-10" cy="5" r="4" fill="#757D86"/> <circle cx="10" cy="-5" r="4" fill="#757D86"/> <circle cx="30" cy="-15" r="4" fill="#757D86"/>
+                            <circle cx="0" cy="10" r="4" fill="#757D86"/> <circle cx="20" cy="0" r="4" fill="#757D86"/> <circle cx="40" cy="-10" r="4" fill="#757D86"/>
+                        </g>
+
+                        <!-- Receiver (Handset) -->
+                        <g id="phone-receiver" transform="translate(-15, -30)">
+                            <path d="M -40 -10 C -50 -30 10 -60 30 -40 L 40 -35 C 20 -60 -40 -30 -30 -5 Z" fill="#181D24" />
+                            <circle cx="-35" cy="-7" r="10" fill="#181D24" />
+                            <circle cx="35" cy="-38" r="10" fill="#181D24" />
+                        </g>
+                        
+                        <text x="0" y="-100" font-family="system-ui" font-size="24" font-weight="bold" fill="#757D86" text-anchor="middle">טלפון (אנלוגי)</text>
+                    </g>
+                </g>
+            </g>
+
+            <!-- ===================== DOM ORDER 4: ISP SERVER (Right) ===================== -->
+            <g transform="translate(950, 450)">
+                <g class="isometric-hover">
+                    <polygon points="-80,20 0,60 80,20 0,-20" fill="rgba(24, 29, 36, 0.1)"/>
+                    
+                    <polygon points="0,40 80,0 80,-160 0,-120" fill="#0075DB" /> 
+                    <polygon points="-80,0 0,40 0,-120 -80,-160" fill="#181D24" /> 
+                    <polygon points="-80,-160 0,-120 80,-160 0,-200" fill="#757D86" /> 
+                    
+                    <polygon points="-75,-150 -5,-115 -5,-105 -75,-140" fill="#2EB4FF" opacity="0.8"/>
+                    <polygon points="-75,-130 -5,-95 -5,-85 -75,-120" fill="#2EB4FF" opacity="0.8"/>
+                    <circle cx="-15" cy="-100" r="3" fill="#FFFFFF" filter="url(#glow)"/>
+
+                    <text x="0" y="-230" font-family="system-ui" font-size="24" font-weight="bold" fill="#181D24" text-anchor="middle">ספק אינטרנט (ISP)</text>
+                </g>
+            </g>
+
+            <!-- ===================== DOM ORDER 5: DIAL-UP MODEM (Center) ===================== -->
+            <g transform="translate(500, 450)">
+                <g class="isometric-hover">
+                    <!-- Shadow -->
+                    <polygon points="-80,10 0,50 80,10 0,-30" fill="rgba(24, 29, 36, 0.1)"/>
+                    
+                    <!-- Modem Body (Flat horizontal box) -->
+                    <polygon points="0,20 80,-20 80,-5 0,35" fill="#0075DB" />
+                    <polygon points="-80,-20 0,20 0,35 -80,-5" fill="#181D24" />
+                    <polygon points="-80,-20 0,20 80,-20 0,-60" fill="#FFFFFF" stroke="#757D86" stroke-width="2"/>
+                    
+                    <!-- Lights on the front left panel -->
+                    <circle cx="-20" cy="5" r="3" fill="#757D86" id="modem-light-1" />
+                    <circle cx="-35" cy="-2" r="3" fill="#757D86" id="modem-light-2" />
+                    <circle cx="-50" cy="-10" r="3" fill="#757D86" id="modem-light-3" />
+                    
+                    <!-- Label -->
+                    <g transform="translate(0, -10)">
+                        <polygon points="-30,-15 30,15 40,10 -20,-20" fill="#757D86" opacity="0.2"/>
+                        <text x="5" y="0" font-family="system-ui" font-size="12" font-weight="bold" fill="#181D24" text-anchor="middle" transform="skewY(26)">MODEM 56k</text>
+                    </g>
+
+                    <text x="0" y="-90" font-family="system-ui" font-size="20" font-weight="bold" fill="#0075DB" text-anchor="middle">מודם</text>
+                    <text x="0" y="-70" font-family="system-ui" font-size="12" fill="#757D86" text-anchor="middle">Modulator-Demodulator</text>
+                </g>
+            </g>
+
+
+            <!-- ===================== ANIMATION ELEMENTS ===================== -->
+            
+            <!-- Digital Data (0s and 1s) from PC to Modem -->
+            <g id="digital-data" style="opacity: 0; transform: translate(250px, 250px);">
+                <rect x="-30" y="-20" width="60" height="24" rx="4" fill="#2EB4FF" filter="url(#shadow)" />
+                <text x="0" y="-3" font-family="monospace" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle" dir="ltr">010110</text>
+            </g>
+
+            <!-- Analog Wave (Modem to ISP) -->
+            <g id="analog-wave" style="opacity: 0; transform: translate(500px, 450px);">
+                <!-- Use the sine-wave template -->
+                <use href="#sine-wave" stroke="#2EB4FF" transform="translate(-60, -15)"/>
+                <rect x="-40" y="-45" width="80" height="20" rx="4" fill="#FFFFFF" opacity="0.9" filter="url(#shadow)" />
+                <text x="0" y="-31" font-family="system-ui" font-size="12" font-weight="bold" fill="#0075DB" text-anchor="middle">אות אנלוגי</text>
+            </g>
+
+            <!-- Voice Wave (Phone to Modem/Line) -->
+            <g id="voice-wave" style="opacity: 0; transform: translate(250px, 650px);">
+                <use href="#sine-wave" stroke="#757D86" transform="translate(-60, -15)"/>
+                <rect x="-40" y="-45" width="80" height="20" rx="4" fill="#FFFFFF" opacity="0.9" filter="url(#shadow)" />
+                <text x="0" y="-31" font-family="system-ui" font-size="12" font-weight="bold" fill="#181D24" text-anchor="middle">שיחת קול</text>
+            </g>
+
+            <!-- Collision Explosion -->
+            <g id="collision-boom" style="opacity: 0; transform: translate(725px, 450px) scale(0);">
+                <polygon points="0,-40 10,-10 40,-10 15,10 25,40 0,20 -25,40 -15,10 -40,-10 -10,-10" fill="#E74C3C" filter="url(#glow)"/>
+                <text x="0" y="5" font-family="system-ui" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">התנגשות!</text>
+            </g>
+
+            <!-- Tooltips -->
+            <g id="tooltip-speed" class="tooltip" transform="translate(700, 380)">
+                <rect x="-60" y="-15" width="120" height="30" rx="15" fill="#FFFFFF" filter="url(#shadow)" stroke="#757D86" stroke-width="2"/>
+                <text x="0" y="5" font-family="monospace" font-size="14" font-weight="bold" fill="#757D86" text-anchor="middle" dir="ltr">Max: 56 Kbps</text>
+            </g>
+
+            <g id="tooltip-cost" class="tooltip" transform="translate(850, 380)">
+                <rect x="-60" y="-15" width="120" height="30" rx="15" fill="#FFFFFF" filter="url(#shadow)" stroke="#E74C3C" stroke-width="2"/>
+                <text x="0" y="5" font-family="system-ui" font-size="14" font-weight="bold" fill="#E74C3C" text-anchor="middle">חיוב לפי דקה ⏱️</text>
+            </g>
+
+        </svg>
+    </div>
+
+    <!-- ===================== UI PANEL ===================== -->
+    <div class="ui-panel">
+        <div class="step-indicator">
+            <div class="dot active" id="dot-0"></div>
+            <div class="dot" id="dot-1"></div>
+            <div class="dot" id="dot-2"></div>
+            <div class="dot" id="dot-3"></div>
+            <div class="dot" id="dot-4"></div>
+        </div>
+        <h2 id="ui-title">עידן ה-Dial-up (חיוג טלפוני)</h2>
+        <p id="ui-desc">לפני עידן הפס הרחב, המחשב השתמש בקו הטלפון הביתי הרגיל כדי להתחבר לאינטרנט. זה יצר צוואר בקבוק משמעותי.</p>
+        <div class="controls">
+            <button id="next-btn" onclick="nextStep()">התחל סימולציה</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Positions ---
+    const pos = {
+        pc: { x: 250, y: 250 },
+        phone: { x: 250, y: 650 },
+        modem: { x: 500, y: 450 },
+        isp: { x: 950, y: 450 },
+        collision: { x: 725, y: 450 } // Middle of Modem-ISP line
+    };
+    
+    const colors = {
+        digital: '#2EB4FF',
+        modem: '#0075DB',
+        analog: '#757D86',
+        error: '#E74C3C'
+    };
+
+    let currentStep = 0;
+    let isAnimating = false;
+    let blinkInterval;
+
+    // DOM Elements
+    const uiTitle = document.getElementById('ui-title');
+    const uiDesc = document.getElementById('ui-desc');
+    const nextBtn = document.getElementById('next-btn');
+    
+    const pcScreen = document.getElementById('pc-screen');
+    const phoneGroup = document.getElementById('phone-group');
+    const mainLine = document.getElementById('main-line');
+    
+    const l1 = document.getElementById('modem-light-1');
+    const l2 = document.getElementById('modem-light-2');
+    const l3 = document.getElementById('modem-light-3');
+    
+    const digiData = document.getElementById('digital-data');
+    const anaWave = document.getElementById('analog-wave');
+    const voiceWave = document.getElementById('voice-wave');
+    const collisionBoom = document.getElementById('collision-boom');
+    
+    const ttSpeed = document.getElementById('tooltip-speed');
+    const ttCost = document.getElementById('tooltip-cost');
+
+    function startModemBlinking() {
+        let toggle = true;
+        blinkInterval = setInterval(() => {
+            l1.setAttribute('fill', toggle ? colors.digital : colors.analog);
+            l2.setAttribute('fill', !toggle ? colors.modem : colors.analog);
+            l3.setAttribute('fill', toggle ? colors.error : colors.analog);
+            toggle = !toggle;
+        }, 150);
+    }
+
+    function stopModemBlinking() {
+        clearInterval(blinkInterval);
+        l1.setAttribute('fill', colors.analog);
+        l2.setAttribute('fill', colors.analog);
+        l3.setAttribute('fill', colors.analog);
+    }
+
+    // Generic mover function
+    function moveElement(el, from, to, duration, ease = 'linear', onComplete = null) {
+        el.style.transition = 'none';
+        el.style.transform = `translate(${from.x}px, ${from.y}px)`;
+        el.style.opacity = '0';
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                el.style.transition = `transform ${duration}s ${ease}, opacity 0.2s ease`;
+                el.style.opacity = '1';
+                el.style.transform = `translate(${to.x}px, ${to.y}px)`;
+            });
+        });
+
+        if (onComplete) {
+            setTimeout(onComplete, duration * 1000);
+        }
+    }
+
+
+    // --- State Machine ---
+    const stepsData = [
+        {
+            title: "עידן ה-Dial-up (חיוג טלפוני)",
+            desc: "לפני עידן הפס הרחב, המחשב השתמש בקו הטלפון הביתי הרגיל כדי להתחבר לאינטרנט. זה יצר צוואר בקבוק משמעותי.",
+            btn: "התחל סימולציה",
+            action: () => { resetVisuals(); }
+        },
+        {
+            title: "שלב 1: הצליל המוכר (חיוג)",
+            desc: "כדי להתחבר, המודם 'חייג' מספר טלפון לשרתי ספק האינטרנט. מי שחי בתקופה הזו בטוח זוכר את צליל הצפצופים והרעשים האלקטרוניים החזקים של תהליך ה-Handshake.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                pcScreen.setAttribute('fill', colors.digital);
+                startModemBlinking();
+                
+                // Line becomes active
+                mainLine.style.transition = 'stroke 1s ease';
+                mainLine.setAttribute('stroke', colors.digital);
+                mainLine.setAttribute('opacity', '0.6');
+                mainLine.classList.add('wave-flow');
+            }
+        },
+        {
+            title: "שלב 2: המרה דיגיטלי לאנלוגי",
+            desc: "הקו היה אנלוגי ונועד להעביר קול אנושי בלבד. המודם (Modulator-Demodulator) לקח את הביטים של המחשב, המיר אותם לאות אנלוגי שיכול לעבור בחוט, ושלח אותם הלאה.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                isAnimating = true; nextBtn.disabled = true;
+                
+                // Digital PC -> Modem
+                moveElement(digiData, pos.pc, pos.modem, 1.5, 'cubic-bezier(0.34, 1.56, 0.64, 1)', () => {
+                    digiData.style.opacity = '0';
+                    
+                    // Analog Modem -> ISP
+                    moveElement(anaWave, pos.modem, pos.isp, 2, 'linear', () => {
+                        anaWave.style.opacity = '0';
+                        isAnimating = false; nextBtn.disabled = false;
+                    });
+                });
+            }
+        },
+        {
+            title: "שלב 3: המגבלות (איטי ויקר)",
+            desc: "מכיוון שקו הטלפון לא נועד להעברת נתונים כבדים, המהירות המקסימלית הייתה 56 Kbps (היום אנחנו גולשים במהירויות של גיגה-ביט!). בנוסף, התשלום לחברת הטלפון היה לפי דקת שימוש.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                ttSpeed.style.opacity = '1';
+                ttSpeed.style.transform = 'translate(700px, 360px)';
+                setTimeout(() => {
+                    ttCost.style.opacity = '1';
+                    ttCost.style.transform = 'translate(850px, 360px)';
+                }, 800);
+            }
+        },
+        {
+            title: "שלב 4: הקו תפוס! (התנגשות)",
+            desc: "המגבלה הכי כואבת: הקו נועד לאות יחיד. אם מישהו הרים את הטלפון כדי להתקשר, האות הקולי שלו התנגש עם האות של האינטרנט. התוצאה? ניתוק מיידי מהאינטרנט וצעקות ברחבי הבית: 'מי הרים את הטלפון?!'",
+            btn: "התחל מחדש",
+            action: () => { 
+                isAnimating = true; nextBtn.disabled = true;
+                
+                // Phone rings
+                phoneGroup.classList.add('ringing');
+                
+                setTimeout(() => {
+                    phoneGroup.classList.remove('ringing');
+                    
+                    // Voice wave goes Phone -> Modem
+                    moveElement(voiceWave, pos.phone, pos.modem, 1, 'linear', () => {
+                        voiceWave.style.opacity = '0';
+                        
+                        // Both waves meet at the center line!
+                        moveElement(anaWave, pos.modem, pos.collision, 1, 'linear');
+                        moveElement(voiceWave, pos.modem, pos.collision, 1, 'linear', () => {
+                            // COLLISION!
+                            anaWave.style.opacity = '0';
+                            voiceWave.style.opacity = '0';
+                            
+                            collisionBoom.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease';
+                            collisionBoom.style.opacity = '1';
+                            collisionBoom.style.transform = `translate(${pos.collision.x}px, ${pos.collision.y}px) scale(1.5)`;
+                            
+                            // Drop connection effects
+                            stopModemBlinking();
+                            l1.setAttribute('fill', colors.error);
+                            mainLine.classList.remove('wave-flow');
+                            mainLine.setAttribute('stroke', colors.dark);
+                            mainLine.setAttribute('opacity', '0.2');
+                            pcScreen.setAttribute('fill', colors.error); // Red screen of death
+                            
+                            setTimeout(() => { isAnimating = false; nextBtn.disabled = false; }, 1000);
+                        });
+                    });
+                }, 1000);
+            }
+        }
+    ];
+
+    function nextStep() {
+        if (isAnimating) return;
+        currentStep++;
+        if (currentStep >= stepsData.length) currentStep = 0;
+        updateUI();
+        stepsData[currentStep].action();
+    }
+
+    function updateUI() {
+        const data = stepsData[currentStep];
+        uiTitle.innerText = data.title;
+        uiDesc.innerText = data.desc;
+        nextBtn.innerText = data.btn;
+
+        for(let i=0; i<5; i++) {
+            const dot = document.getElementById(`dot-${i}`);
+            if (i < currentStep) dot.className = "dot completed";
+            else if (i === currentStep) dot.className = "dot active";
+            else dot.className = "dot";
+        }
+    }
+
+    function resetVisuals() {
+        stopModemBlinking();
+        pcScreen.setAttribute('fill', colors.analog);
+        
+        mainLine.classList.remove('wave-flow');
+        mainLine.setAttribute('stroke', colors.dark);
+        mainLine.setAttribute('opacity', '0.2');
+        
+        digiData.style.opacity = '0';
+        anaWave.style.opacity = '0';
+        voiceWave.style.opacity = '0';
+        
+        collisionBoom.style.opacity = '0';
+        collisionBoom.style.transform = `translate(${pos.collision.x}px, ${pos.collision.y}px) scale(0)`;
+        
+        ttSpeed.style.opacity = '0';
+        ttSpeed.style.transform = 'translate(700px, 380px)';
+        ttCost.style.opacity = '0';
+        ttCost.style.transform = 'translate(850px, 380px)';
+    }
+
+    // Initialize UI
+    updateUI();
+</script>
+</body>
+</html>
