@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARP Process Animation</title>
+    <style>
+        :root {
+            --color-light-blue: #2EB4FF;
+            --color-dark-blue: #0075DB;
+            --color-gray: #757D86;
+            --color-dark: #181D24;
+            --color-bg: #FFFFFF;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--color-bg);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            color: var(--color-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stage {
+            flex-grow: 1;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            max-height: 65vh;
+            filter: drop-shadow(0 20px 30px rgba(24, 29, 36, 0.05));
+        }
+
+        .ui-panel {
+            background: var(--color-bg);
+            border-top: 4px solid var(--color-dark-blue);
+            box-shadow: 0 -10px 40px rgba(117, 125, 134, 0.15);
+            padding: 2rem;
+            border-radius: 24px 24px 0 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-height: 220px;
+        }
+
+        .step-indicator {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--color-gray);
+            opacity: 0.3;
+            transition: all 0.3s ease;
+        }
+
+        .dot.active {
+            background-color: var(--color-light-blue);
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        .dot.completed {
+            background-color: var(--color-dark-blue);
+            opacity: 1;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: var(--color-dark-blue);
+        }
+
+        p {
+            margin: 0;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: var(--color-gray);
+            flex-grow: 1;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+
+        button {
+            background-color: var(--color-dark-blue);
+            color: var(--color-bg);
+            border: none;
+            padding: 12px 32px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 117, 219, 0.3);
+        }
+
+        button:hover {
+            background-color: var(--color-light-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(46, 180, 255, 0.4);
+        }
+
+        button:disabled {
+            background-color: var(--color-gray);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            opacity: 0.7;
+        }
+
+        .isometric-hover {
+            transition: transform 0.3s ease;
+        }
+        g:hover > .isometric-hover {
+            transform: translateY(-8px);
+        }
+
+        #arp-table {
+            transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .fade-out {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="stage">
+        <!-- SVG Canvas (1200x800) -->
+        <!-- Center coordinates logic:
+             Switch: 600, 350
+             PC1 (Sender): 300, 500 (dx=-300, dy=150 from Switch)
+             PC2 (Target): 900, 200 (dx=300, dy=-150 from Switch)
+             PC3 (Other): 900, 500 (dx=300, dy=150 from Switch)
+        -->
+        <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet">
+            <defs>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+                <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+                    <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#181D24" flood-opacity="0.15"/>
+                </filter>
+            </defs>
+
+            <!-- ===================== DOM ORDER 1: WIRES ===================== -->
+            <!-- Switch (600, 350) to PC2 (900, 200) -->
+            <path d="M 600 350 L 900 200" stroke="#757D86" stroke-width="4" fill="none" opacity="0.4" />
+            <!-- Switch (600, 350) to PC1 (300, 500) -->
+            <path d="M 600 350 L 300 500" stroke="#757D86" stroke-width="4" fill="none" opacity="0.4" />
+            <!-- Switch (600, 350) to PC3 (900, 500) -->
+            <path d="M 600 350 L 900 500" stroke="#757D86" stroke-width="4" fill="none" opacity="0.4" />
+
+            <!-- ===================== DOM ORDER 2: PC 2 (Top Right - Target) ===================== -->
+            <g transform="translate(900, 200)">
+                <g class="isometric-hover">
+                    <g transform="scale(0.8)">
+                        <polygon points="-100,10 0,60 100,10 0,-40" fill="rgba(24, 29, 36, 0.1)"/>
+                        <polygon points="0,15 100,-35 100,-25 0,25" fill="#0075DB" />
+                        <polygon points="-100,-35 0,15 0,25 -100,-25" fill="#181D24" />
+                        <polygon points="-100,-35 0,15 100,-35 0,-85" fill="#757D86" />
+                        <polygon points="-80,-40 -5,-3 70,-40 -5,-77" fill="#181D24" opacity="0.6" />
+                        <polygon points="-100,-35 0,-85 0,-195 -100,-145" fill="#181D24" />
+                        <polygon points="-95,-43 -5,-88 -5,-187 -95,-142" fill="#757D86" id="pc2-screen" style="transition: fill 0.5s ease;"/>
+                        
+                        <text x="0" y="-235" font-family="system-ui" font-size="22" font-weight="bold" fill="#181D24" text-anchor="middle">מחשב 2 (היעד)</text>
+                        <text x="0" y="-210" font-family="monospace" font-size="18" font-weight="bold" fill="#0075DB" text-anchor="middle" dir="ltr">IP: 192.168.1.50</text>
+                        <text x="0" y="-190" font-family="monospace" font-size="14" font-weight="bold" fill="#757D86" text-anchor="middle" dir="ltr">MAC: 00:00:BB:BB</text>
+                    </g>
+                </g>
+            </g>
+
+            <!-- ===================== DOM ORDER 3: SWITCH (Center) ===================== -->
+            <g transform="translate(600, 350)">
+                <g class="isometric-hover">
+                    <polygon points="-100,10 0,60 100,10 0,-40" fill="rgba(24, 29, 36, 0.1)"/>
+                    <polygon points="0,10 100,-40 100,-25 0,25" fill="#0075DB" />
+                    <polygon points="-100,-40 0,10 0,25 -100,-25" fill="#181D24" />
+                    <polygon points="-100,-40 0,10 100,-40 0,-90" fill="#757D86" />
+                    
+                    <!-- Ports -->
+                    <polygon points="-80,-30 -70,-25 -70,-20 -80,-25" fill="#2EB4FF" id="port-1"/>
+                    <polygon points="-60,-20 -50,-15 -50,-10 -60,-15" fill="#2EB4FF" id="port-2"/>
+                    <polygon points="-40,-10 -30,-5 -30,0 -40,-5" fill="#2EB4FF" id="port-3"/>
+
+                    <text x="0" y="-110" font-family="system-ui" font-size="18" font-weight="bold" fill="#181D24" text-anchor="middle">סוויץ' (Switch)</text>
+                    <text x="0" y="-90" font-family="system-ui" font-size="14" fill="#757D86" text-anchor="middle">משכפל הודעות Broadcast</text>
+                </g>
+            </g>
+
+            <!-- ===================== DOM ORDER 4: PC 1 (Bottom Left - Sender) ===================== -->
+            <g transform="translate(300, 500)">
+                <g class="isometric-hover">
+                    <g transform="scale(0.85)">
+                        <polygon points="-100,10 0,60 100,10 0,-40" fill="rgba(24, 29, 36, 0.1)"/>
+                        <polygon points="0,15 100,-35 100,-25 0,25" fill="#0075DB" />
+                        <polygon points="-100,-35 0,15 0,25 -100,-25" fill="#181D24" />
+                        <polygon points="-100,-35 0,15 100,-35 0,-85" fill="#757D86" />
+                        <polygon points="-80,-40 -5,-3 70,-40 -5,-77" fill="#181D24" opacity="0.6" />
+                        <polygon points="-100,-35 0,-85 0,-195 -100,-145" fill="#181D24" />
+                        <polygon points="-95,-43 -5,-88 -5,-187 -95,-142" fill="#0075DB" />
+                        
+                        <text x="0" y="-235" font-family="system-ui" font-size="22" font-weight="bold" fill="#181D24" text-anchor="middle">מחשב 1 (השולח)</text>
+                        <text x="0" y="-210" font-family="monospace" font-size="18" font-weight="bold" fill="#0075DB" text-anchor="middle" dir="ltr">IP: 192.168.1.10</text>
+                        <text x="0" y="-190" font-family="monospace" font-size="14" font-weight="bold" fill="#757D86" text-anchor="middle" dir="ltr">MAC: 00:00:AA:AA</text>
+                    </g>
+                </g>
+            </g>
+
+            <!-- ===================== DOM ORDER 5: PC 3 (Bottom Right - Other) ===================== -->
+            <g transform="translate(900, 500)">
+                <g class="isometric-hover">
+                    <g transform="scale(0.8)">
+                        <polygon points="-100,10 0,60 100,10 0,-40" fill="rgba(24, 29, 36, 0.1)"/>
+                        <polygon points="0,15 100,-35 100,-25 0,25" fill="#0075DB" />
+                        <polygon points="-100,-35 0,15 0,25 -100,-25" fill="#181D24" />
+                        <polygon points="-100,-35 0,15 100,-35 0,-85" fill="#757D86" />
+                        <polygon points="-80,-40 -5,-3 70,-40 -5,-77" fill="#181D24" opacity="0.6" />
+                        <polygon points="-100,-35 0,-85 0,-195 -100,-145" fill="#181D24" />
+                        <polygon points="-95,-43 -5,-88 -5,-187 -95,-142" fill="#757D86" id="pc3-screen" style="transition: fill 0.5s ease;"/>
+                        
+                        <text x="0" y="-235" font-family="system-ui" font-size="22" font-weight="bold" fill="#757D86" text-anchor="middle">מחשב 3 (צד שלישי)</text>
+                        <text x="0" y="-210" font-family="monospace" font-size="18" font-weight="bold" fill="#757D86" text-anchor="middle" dir="ltr">IP: 192.168.1.99</text>
+                        <text x="0" y="-190" font-family="monospace" font-size="14" font-weight="bold" fill="#757D86" opacity="0.6" text-anchor="middle" dir="ltr">MAC: 00:00:CC:CC</text>
+                    </g>
+                </g>
+            </g>
+
+            <!-- ===================== DOM ORDER 6: ARP CACHE TABLE ===================== -->
+            <!-- Floats above PC1 -->
+            <g id="arp-table" opacity="0" transform="translate(80, 50) scale(0.9)">
+                <rect x="0" y="0" width="380" height="150" rx="12" fill="#FFFFFF" filter="url(#shadow)" stroke="#0075DB" stroke-width="3"/>
+                <rect x="0" y="0" width="380" height="40" rx="12" fill="#0075DB" />
+                <rect x="0" y="20" width="380" height="20" fill="#0075DB" />
+                
+                <text x="190" y="26" font-family="system-ui" font-size="18" font-weight="bold" fill="#FFFFFF" text-anchor="middle">טבלת ARP (במחשב 1)</text>
+                
+                <!-- Table Headers -->
+                <text x="280" y="65" font-family="system-ui" font-size="14" font-weight="bold" fill="#757D86" text-anchor="middle">כתובת IP (יעד)</text>
+                <text x="190" y="65" font-family="system-ui" font-size="14" fill="#757D86" text-anchor="middle">→</text>
+                <text x="100" y="65" font-family="system-ui" font-size="14" font-weight="bold" fill="#757D86" text-anchor="middle">כתובת MAC (פיזית)</text>
+
+                <line x1="20" y1="80" x2="360" y2="80" stroke="#757D86" stroke-opacity="0.2" stroke-width="2" />
+                
+                <!-- Dynamic Row (Empty at first) -->
+                <g id="arp-row-1" opacity="0" style="transition: opacity 0.5s ease;">
+                    <rect x="20" y="90" width="340" height="40" rx="6" fill="#2EB4FF" opacity="0.1" id="arp-row-bg" />
+                    <text x="280" y="115" font-family="monospace" font-size="16" font-weight="bold" fill="#181D24" text-anchor="middle" dir="ltr">192.168.1.50</text>
+                    <text x="190" y="115" font-family="system-ui" font-size="18" font-weight="bold" fill="#0075DB" text-anchor="middle">⟷</text>
+                    <text x="100" y="115" font-family="monospace" font-size="16" font-weight="bold" fill="#0075DB" text-anchor="middle" dir="ltr">00:00:BB:BB</text>
+                </g>
+                <text id="arp-empty-text" x="190" y="115" font-family="system-ui" font-size="16" font-weight="bold" fill="#757D86" text-anchor="middle">הטבלה ריקה...</text>
+            </g>
+
+
+            <!-- ===================== DOM ORDER 7: DATA PACKETS ===================== -->
+            <!-- Main Packet -->
+            <g id="packet-container" style="opacity: 0; transform: translate(300px, 500px);">
+                <g id="packet-visual" transform="translate(0, -40)">
+                    <polygon points="0,12 24,-12 24,6 0,30" fill="#0075DB" id="packet-right" />
+                    <polygon points="-24,-12 0,12 0,30 -24,6" fill="#181D24" id="packet-left" />
+                    <polygon points="-24,-12 0,12 24,-12 0,-36" fill="#2EB4FF" id="packet-top" />
+                    
+                    <rect id="packet-label-bg" x="-90" y="-85" width="180" height="40" rx="6" fill="#FFFFFF" filter="url(#shadow)" opacity="0.95" />
+                    <text id="packet-label-1" x="0" y="-68" font-family="system-ui" font-size="12" font-weight="bold" fill="#181D24" text-anchor="middle" dir="ltr">ARP Request (Broadcast)</text>
+                    <text id="packet-label-2" x="0" y="-52" font-family="monospace" font-size="11" fill="#757D86" text-anchor="middle" dir="ltr">Who has 192.168.1.50?</text>
+                </g>
+            </g>
+
+            <!-- Ghost Packet (Used for showing Broadcast splitting) -->
+            <g id="ghost-packet-container" style="opacity: 0; transform: translate(600px, 350px);">
+                <g id="ghost-packet-visual" transform="translate(0, -40)">
+                    <polygon points="0,12 24,-12 24,6 0,30" fill="#0075DB" id="ghost-packet-right" />
+                    <polygon points="-24,-12 0,12 0,30 -24,6" fill="#181D24" id="ghost-packet-left" />
+                    <polygon points="-24,-12 0,12 24,-12 0,-36" fill="#2EB4FF" id="ghost-packet-top" />
+                    
+                    <rect id="ghost-packet-label-bg" x="-90" y="-85" width="180" height="40" rx="6" fill="#FFFFFF" filter="url(#shadow)" opacity="0.95" />
+                    <text id="ghost-packet-label-1" x="0" y="-68" font-family="system-ui" font-size="12" font-weight="bold" fill="#181D24" text-anchor="middle" dir="ltr">ARP Request (Broadcast)</text>
+                    <text id="ghost-packet-label-2" x="0" y="-52" font-family="monospace" font-size="11" fill="#757D86" text-anchor="middle" dir="ltr">Who has 192.168.1.50?</text>
+                </g>
+            </g>
+        </svg>
+    </div>
+
+    <!-- ===================== UI PANEL ===================== -->
+    <div class="ui-panel">
+        <div class="step-indicator">
+            <div class="dot active" id="dot-0"></div>
+            <div class="dot" id="dot-1"></div>
+            <div class="dot" id="dot-2"></div>
+            <div class="dot" id="dot-3"></div>
+            <div class="dot" id="dot-4"></div>
+            <div class="dot" id="dot-5"></div>
+            <div class="dot" id="dot-6"></div>
+        </div>
+        <h2 id="ui-title">מה זה ARP? (Address Resolution Protocol)</h2>
+        <p id="ui-desc">מחשב 1 רוצה לשלוח קובץ למחשב 2. הוא יודע את כתובת ה-IP שלו (192.168.1.50), אבל ברשת מקומית (LAN), סוויצ'ים מעבירים מידע לפי כתובת פיזית (MAC Address). איך הוא יגלה אותה?</p>
+        <div class="controls">
+            <button id="next-btn" onclick="nextStep()">התחל תהליך</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- EXACT Layout Positions for Routing ---
+    const pos = {
+        pc1: { x: 300, y: 500 },
+        switch: { x: 600, y: 350 },
+        pc2: { x: 900, y: 200 },
+        pc3: { x: 900, y: 500 }
+    };
+    
+    // Palette
+    const colors = {
+        broadcast: '#2EB4FF', // Light Blue for asking everyone
+        discard: '#757D86',   // Gray for ignoring/dropping
+        unicast: '#0075DB',   // Dark Blue for direct reply
+        data: '#181D24'       // Dark for actual data payload
+    };
+
+    let currentStep = 0;
+    let isAnimating = false;
+
+    // DOM Elements
+    const packetContainer = document.getElementById('packet-container');
+    const packetTop = document.getElementById('packet-top');
+    const packetLabel1 = document.getElementById('packet-label-1');
+    const packetLabel2 = document.getElementById('packet-label-2');
+    
+    const ghostPacketContainer = document.getElementById('ghost-packet-container');
+    const ghostPacketTop = document.getElementById('ghost-packet-top');
+    const ghostPacketVisual = document.getElementById('ghost-packet-visual');
+    
+    const uiTitle = document.getElementById('ui-title');
+    const uiDesc = document.getElementById('ui-desc');
+    const nextBtn = document.getElementById('next-btn');
+    
+    const arpTable = document.getElementById('arp-table');
+    const arpRow1 = document.getElementById('arp-row-1');
+    const arpRowBg = document.getElementById('arp-row-bg');
+    const arpEmptyText = document.getElementById('arp-empty-text');
+    
+    const pc2Screen = document.getElementById('pc2-screen');
+    const pc3Screen = document.getElementById('pc3-screen');
+
+    // --- State Machine ---
+    const stepsData = [
+        {
+            title: "מה זה ARP? (Address Resolution Protocol)",
+            desc: "מחשב 1 רוצה לשלוח קובץ למחשב 2. הוא יודע את כתובת ה-IP שלו (192.168.1.50), אבל ברשת מקומית, סוויצ'ים מעבירים מידע רק לפי כתובת פיזית (MAC Address). איך הוא יגלה אותה?",
+            btn: "התחל תהליך",
+            action: () => { resetVisuals(); }
+        },
+        {
+            title: "שלב 1: בדיקת טבלת ARP",
+            desc: "המחשב בודק קודם ב'זיכרון' שלו (טבלת ה-ARP) כדי לראות אם הוא כבר מכיר את ה-MAC של 192.168.1.50. הטבלה ריקה! לכן, הוא חייב לשאול את הרשת.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                showArpTable();
+            }
+        },
+        {
+            title: "שלב 2: יצירת ARP Request (Broadcast)",
+            desc: "מחשב 1 שולח הודעת 'Broadcast' (שידור לכולם) עם יעד מיוחד: FF:FF:FF:FF:FF:FF. ההודעה שואלת: 'למי יש את ה-IP 192.168.1.50? נא שלח לי את ה-MAC שלך!'.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                triggerPacketMultiPath([pos.pc1, pos.switch], 'ARP Request (Broadcast)', 'Who has .50?', colors.broadcast);
+            }
+        },
+        {
+            title: "שלב 3: הסוויץ' משכפל את ההודעה",
+            desc: "הסוויץ' (Switch) רואה שזו הודעת Broadcast, ולכן התפקיד שלו הוא לקחת את החבילה ולשכפל אותה לכל שאר המחשבים שמחוברים אליו (מחשב 2 ומחשב 3).",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                // Main packet goes to PC2, Ghost packet goes to PC3 simultaneously
+                triggerBroadcastPhase(pos.switch, pos.pc2, pos.pc3, colors.broadcast);
+            }
+        },
+        {
+            title: "שלב 4: עיבוד ההודעה (Discard vs Accept)",
+            desc: "מחשב 3 רואה את ההודעה, מבין שה-IP שלו הוא .99 ולא .50, ופשוט זורק אותה (Discard). מחשב 2 רואה שה-IP תואם לשלו, פותח את ההודעה ומכין תשובה.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                // Ghost packet turns gray and drops down
+                ghostPacketVisual.classList.add('fade-out');
+                pc3Screen.setAttribute('fill', '#181D24'); // screen dims
+                
+                // PC2 Accepts
+                pc2Screen.setAttribute('fill', colors.broadcast);
+            }
+        },
+        {
+            title: "שלב 5: שליחת ARP Reply (Unicast)",
+            desc: "מחשב 2 שולח בחזרה הודעת 'Unicast' (ישירות למחשב 1): 'היי, ה-IP הזה הוא שלי! כתובת ה-MAC שלי היא 00:00:BB:BB'.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                // Reset main packet style for Unicast
+                ghostPacketContainer.style.opacity = '0'; // Clean up ghost completely
+                triggerPacketMultiPath([pos.pc2, pos.switch, pos.pc1], 'ARP Reply (Unicast)', 'My MAC is BB:BB', colors.unicast);
+                pc2Screen.setAttribute('fill', '#757D86'); // reset screen
+            }
+        },
+        {
+            title: "שלב 6: עדכון הטבלה ושליחת הנתונים",
+            desc: "מחשב 1 מקבל את ה-MAC, רושם אותו בטבלת ה-ARP שלו, ועכשיו סוף סוף הוא יכול לשלוח את קובץ הנתונים (Data) ישירות למחשב 2 בצורה מאובטחת ומהירה!",
+            btn: "התחל מחדש",
+            action: () => { 
+                arpEmptyText.style.opacity = '0';
+                arpRow1.style.opacity = '1';
+                highlightArpRow();
+                
+                setTimeout(() => {
+                    triggerPacketMultiPath([pos.pc1, pos.switch, pos.pc2], 'Data Payload', 'To MAC: BB:BB', colors.data, () => {
+                        pc2Screen.setAttribute('fill', '#2EB4FF'); // Success!
+                    });
+                }, 1000);
+            }
+        }
+    ];
+
+    function nextStep() {
+        if (isAnimating) return;
+        currentStep++;
+        if (currentStep >= stepsData.length) currentStep = 0;
+        updateUI();
+        stepsData[currentStep].action();
+    }
+
+    function updateUI() {
+        const data = stepsData[currentStep];
+        uiTitle.innerText = data.title;
+        uiDesc.innerText = data.desc;
+        nextBtn.innerText = data.btn;
+
+        for(let i=0; i<7; i++) {
+            const dot = document.getElementById(`dot-${i}`);
+            if (i < currentStep) dot.className = "dot completed";
+            else if (i === currentStep) dot.className = "dot active";
+            else dot.className = "dot";
+        }
+    }
+
+    // Helper to format packet labels
+    function setPacketData(container, topEl, l1El, l2El, title, subtitle, color) {
+        topEl.setAttribute('fill', color);
+        l1El.textContent = title;
+        l1El.style.fill = color;
+        l2El.textContent = subtitle;
+    }
+
+    function triggerPacketMultiPath(waypoints, title, subtitle, mainColor, onComplete) {
+        isAnimating = true;
+        nextBtn.disabled = true;
+
+        setPacketData(packetContainer, packetTop, packetLabel1, packetLabel2, title, subtitle, mainColor);
+
+        packetContainer.style.transition = 'none';
+        packetContainer.style.transform = `translate(${waypoints[0].x}px, ${waypoints[0].y}px)`;
+        packetContainer.style.opacity = '0';
+
+        let currentWp = 0;
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                packetContainer.style.opacity = '1';
+                moveToNextWp();
+            });
+        });
+
+        function moveToNextWp() {
+            currentWp++;
+            if (currentWp >= waypoints.length) {
+                isAnimating = false;
+                nextBtn.disabled = false;
+                if (onComplete) onComplete();
+                return;
+            }
+
+            packetContainer.style.transition = 'transform 1.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            packetContainer.style.transform = `translate(${waypoints[currentWp].x}px, ${waypoints[currentWp].y}px)`;
+
+            setTimeout(() => {
+                if (currentWp < waypoints.length - 1) setTimeout(moveToNextWp, 100);
+                else moveToNextWp();
+            }, 1400);
+        }
+    }
+
+    // Custom function to animate two packets at once (Switch Broadcasting)
+    function triggerBroadcastPhase(start, toMain, toGhost, mainColor) {
+        isAnimating = true;
+        nextBtn.disabled = true;
+
+        // Setup Main Packet
+        setPacketData(packetContainer, packetTop, packetLabel1, packetLabel2, 'ARP Request (Broadcast)', 'Who has .50?', mainColor);
+        packetContainer.style.transition = 'none';
+        packetContainer.style.transform = `translate(${start.x}px, ${start.y}px)`;
+        
+        // Setup Ghost Packet
+        ghostPacketVisual.classList.remove('fade-out'); // reset discard animation
+        setPacketData(ghostPacketContainer, ghostPacketTop, document.getElementById('ghost-packet-label-1'), document.getElementById('ghost-packet-label-2'), 'ARP Request (Broadcast)', 'Who has .50?', mainColor);
+        ghostPacketContainer.style.transition = 'none';
+        ghostPacketContainer.style.transform = `translate(${start.x}px, ${start.y}px)`;
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                packetContainer.style.opacity = '1';
+                ghostPacketContainer.style.opacity = '1';
+
+                // Move both simultaneously
+                packetContainer.style.transition = 'transform 1.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                packetContainer.style.transform = `translate(${toMain.x}px, ${toMain.y}px)`;
+
+                ghostPacketContainer.style.transition = 'transform 1.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                ghostPacketContainer.style.transform = `translate(${toGhost.x}px, ${toGhost.y}px)`;
+                
+                setTimeout(() => {
+                    isAnimating = false;
+                    nextBtn.disabled = false;
+                }, 1400);
+            });
+        });
+    }
+
+
+    function showArpTable() {
+        arpTable.style.opacity = '1';
+        arpTable.style.transform = 'translate(80px, 30px) scale(0.9)';
+    }
+
+    function hideArpTable() {
+        arpTable.style.opacity = '0';
+        arpTable.style.transform = 'translate(80px, 50px) scale(0.85)';
+        arpRow1.style.opacity = '0';
+        arpEmptyText.style.opacity = '1';
+        arpRowBg.setAttribute('fill', '#2EB4FF');
+    }
+
+    function highlightArpRow() {
+        arpRowBg.setAttribute('fill', '#0075DB');
+        arpRowBg.setAttribute('opacity', '0.3');
+        setTimeout(() => {
+            arpRowBg.setAttribute('fill', '#2EB4FF');
+            arpRowBg.setAttribute('opacity', '0.1');
+        }, 500);
+    }
+
+    function resetVisuals() {
+        packetContainer.style.transition = 'none';
+        packetContainer.style.opacity = '0';
+        packetContainer.style.transform = `translate(${pos.pc1.x}px, ${pos.pc1.y}px)`;
+        
+        ghostPacketContainer.style.transition = 'none';
+        ghostPacketContainer.style.opacity = '0';
+        ghostPacketVisual.classList.remove('fade-out');
+
+        hideArpTable();
+        pc2Screen.setAttribute('fill', '#757D86');
+        pc3Screen.setAttribute('fill', '#757D86');
+    }
+
+    // Initialize UI
+    updateUI();
+</script>
+</body>
+</html>
