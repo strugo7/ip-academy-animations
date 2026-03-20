@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLAN & Trunking Animation</title>
+    <style>
+        :root {
+            --color-vlan10: #2EB4FF; /* Light Blue */
+            --color-vlan20: #0075DB; /* Dark Blue */
+            --color-trunk: #181D24;  /* Dark */
+            --color-gray: #757D86;
+            --color-bg: #FFFFFF;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--color-bg);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            color: var(--color-trunk);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stage {
+            flex-grow: 1;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            max-height: 65vh;
+            filter: drop-shadow(0 20px 30px rgba(24, 29, 36, 0.05));
+        }
+
+        .ui-panel {
+            background: var(--color-bg);
+            border-top: 4px solid var(--color-vlan20);
+            box-shadow: 0 -10px 40px rgba(117, 125, 134, 0.15);
+            padding: 2rem;
+            border-radius: 24px 24px 0 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-height: 220px;
+        }
+
+        .step-indicator {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--color-gray);
+            opacity: 0.3;
+            transition: all 0.3s ease;
+        }
+
+        .dot.active {
+            background-color: var(--color-vlan10);
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        .dot.completed {
+            background-color: var(--color-vlan20);
+            opacity: 1;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: var(--color-vlan20);
+        }
+
+        p {
+            margin: 0;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: var(--color-gray);
+            flex-grow: 1;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+
+        button {
+            background-color: var(--color-vlan20);
+            color: var(--color-bg);
+            border: none;
+            padding: 12px 32px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 117, 219, 0.3);
+        }
+
+        button:hover {
+            background-color: var(--color-vlan10);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(46, 180, 255, 0.4);
+        }
+
+        button:disabled {
+            background-color: var(--color-gray);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            opacity: 0.7;
+        }
+
+        .isometric-hover {
+            transition: transform 0.3s ease;
+        }
+        g:hover > .isometric-hover {
+            transform: translateY(-8px);
+        }
+
+        /* Dash animation for trunk link */
+        @keyframes dash {
+            to { stroke-dashoffset: -40; }
+        }
+        .trunk-animated {
+            animation: dash 1s linear infinite;
+        }
+
+        /* Smooth color transitions for wires */
+        .wire {
+            transition: stroke 0.8s ease, stroke-width 0.8s ease;
+        }
+
+        /* Packet dynamic elements transitions */
+        .p-top { transition: fill 0.3s ease; }
+        .p-lbl { transition: fill 0.3s ease; }
+        .p-tag { transition: opacity 0.3s ease, transform 0.3s ease; }
+        .p-drop { transition: opacity 0.3s ease; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="stage">
+        <!-- SVG Canvas (1200x800) -->
+        <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet">
+            <defs>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+                <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+                    <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#181D24" flood-opacity="0.15"/>
+                </filter>
+                
+                <!-- FIX: userSpaceOnUse strictly maps the gradient to the exact coordinates, preventing the line from disappearing! -->
+                <linearGradient id="trunk-grad" gradientUnits="userSpaceOnUse" x1="400" y1="450" x2="800" y2="450">
+                    <stop offset="0%" stop-color="#2EB4FF" />
+                    <stop offset="25%" stop-color="#0075DB" />
+                    <stop offset="50%" stop-color="#181D24" />
+                    <stop offset="75%" stop-color="#2EB4FF" />
+                    <stop offset="100%" stop-color="#0075DB" />
+                </linearGradient>
+            </defs>
+
+            <!-- ===================== DOM ORDER 1: WIRES ===================== -->
+            <!-- SwA to SwB (Trunk Link) -->
+            <path id="wire-trunk" class="wire" d="M 400 450 L 800 450" stroke="#757D86" stroke-width="4" fill="none" opacity="0.5" />
+            
+            <!-- SwA to PCs -->
+            <path id="wire-pc1" class="wire" d="M 400 450 L 200 250" stroke="#757D86" stroke-width="4" fill="none" opacity="0.5" />
+            <path id="wire-pc2" class="wire" d="M 400 450 L 200 650" stroke="#757D86" stroke-width="4" fill="none" opacity="0.5" />
+            
+            <!-- SwB to PCs -->
+            <path id="wire-pc3" class="wire" d="M 800 450 L 1000 250" stroke="#757D86" stroke-width="4" fill="none" opacity="0.5" />
+            <path id="wire-pc4" class="wire" d="M 800 450 L 1000 650" stroke="#757D86" stroke-width="4" fill="none" opacity="0.5" />
+
+
+            <!-- ===================== DOM ORDER 2: PCs (Left Side) ===================== -->
+            <!-- PC 1 (Top Left) -->
+            <g transform="translate(200, 250)">
+                <g class="isometric-hover">
+                    <g transform="scale(0.8)">
+                        <polygon points="-100,10 0,60 100,10 0,-40" fill="rgba(24, 29, 36, 0.1)"/>
+                        <polygon points="0,15 100,-35 100,-25 0,25" fill="#0075DB" />
+                        <polygon points="-100,-35 0,15 0,25 -100,-25" fill="#181D24" />
+                        <polygon points="-100,-35 0,15 100,-35 0,-85" fill="#757D86" />
+                        <polygon points="-100,-35 0,-85 0,-195 -100,-145" fill="#181D24" />
+                        <polygon id="screen-pc1" points="-95,-43 -5,-88 -5,-187 -95,-142" fill="#757D86" style="transition: fill 0.5s ease;" /> 
+                        
+                        <text x="0" y="-235" font-family="system-ui" font-size="24" font-weight="bold" fill="#181D24" text-anchor="middle">מחשב 1 (HR)</text>
+                        <text id="lbl-pc1" x="0" y="-205" font-family="monospace" font-size="18" font-weight="bold" fill="#757D86" text-anchor="middle" dir="ltr" style="transition: fill 0.5s ease;">VLAN ??</text>
+                    </g>
+                </g>
+            </g>
+
+            <!-- PC 2 (Bottom Left) -->
+            <g transform="translate(200, 650)">
+                <g class="isometric-hover">
+                    <g transform="scale(0.8)">
+                        <polygon points="-100,10 0,60 100,10 0,-40" fill="rgba(24, 29, 36, 0.1)"/>
+                        <polygon points="0,15 100,-35 100,-25 0,25" fill="#0075DB" />
+                        <polygon points="-100,-35 0,15 0,25 -100,-25" fill="#181D24" />
+                        <polygon points="-100,-35 0,15 100,-35 0,-85" fill="#757D86" />
+                        <polygon points="-100,-35 0,-85 0,-195 -100,-145" fill="#181D24" />
+                        <polygon id="screen-pc2" points="-95,-43 -5,-88 -5,-187 -95,-142" fill="#757D86" style="transition: fill 0.5s ease;" /> 
+                        
+                        <text x="0" y="-235" font-family="system-ui" font-size="24" font-weight="bold" fill="#181D24" text-anchor="middle">מחשב 2 (IT)</text>
+                        <text id="lbl-pc2" x="0" y="-205" font-family="monospace" font-size="18" font-weight="bold" fill="#757D86" text-anchor="middle" dir="ltr" style="transition: fill 0.5s ease;">VLAN ??</text>
+                    </g>
+                </g>
+            </g>
+
+
+            <!-- ===================== DOM ORDER 3: PCs (Right Side) ===================== -->
+            <!-- PC 3 (Top Right) -->
+            <g transform="translate(1000, 250)">
+                <g class="isometric-hover">
+                    <g transform="scale(0.8)">
+                        <polygon points="-100,10 0,60 100,10 0,-40" fill="rgba(24, 29, 36, 0.1)"/>
+                        <polygon points="0,15 100,-35 100,-25 0,25" fill="#0075DB" />
+                        <polygon points="-100,-35 0,15 0,25 -100,-25" fill="#181D24" />
+                        <polygon points="-100,-35 0,15 100,-35 0,-85" fill="#757D86" />
+                        <polygon points="-100,-35 0,-85 0,-195 -100,-145" fill="#181D24" />
+                        <polygon id="screen-pc3" points="-95,-43 -5,-88 -5,-187 -95,-142" fill="#757D86" style="transition: fill 0.5s ease;" /> 
+                        
+                        <text x="0" y="-235" font-family="system-ui" font-size="24" font-weight="bold" fill="#181D24" text-anchor="middle">מחשב 3 (HR)</text>
+                        <text id="lbl-pc3" x="0" y="-205" font-family="monospace" font-size="18" font-weight="bold" fill="#757D86" text-anchor="middle" dir="ltr" style="transition: fill 0.5s ease;">VLAN ??</text>
+                    </g>
+                </g>
+            </g>
+
+            <!-- PC 4 (Bottom Right) -->
+            <g transform="translate(1000, 650)">
+                <g class="isometric-hover">
+                    <g transform="scale(0.8)">
+                        <polygon points="-100,10 0,60 100,10 0,-40" fill="rgba(24, 29, 36, 0.1)"/>
+                        <polygon points="0,15 100,-35 100,-25 0,25" fill="#0075DB" />
+                        <polygon points="-100,-35 0,15 0,25 -100,-25" fill="#181D24" />
+                        <polygon points="-100,-35 0,15 100,-35 0,-85" fill="#757D86" />
+                        <polygon points="-100,-35 0,-85 0,-195 -100,-145" fill="#181D24" />
+                        <polygon id="screen-pc4" points="-95,-43 -5,-88 -5,-187 -95,-142" fill="#757D86" style="transition: fill 0.5s ease;" /> 
+                        
+                        <text x="0" y="-235" font-family="system-ui" font-size="24" font-weight="bold" fill="#181D24" text-anchor="middle">מחשב 4 (IT)</text>
+                        <text id="lbl-pc4" x="0" y="-205" font-family="monospace" font-size="18" font-weight="bold" fill="#757D86" text-anchor="middle" dir="ltr" style="transition: fill 0.5s ease;">VLAN ??</text>
+                    </g>
+                </g>
+            </g>
+
+
+            <!-- ===================== DOM ORDER 4: SWITCHES ===================== -->
+            <!-- Switch A (Left) -->
+            <g transform="translate(400, 450)">
+                <g class="isometric-hover">
+                    <polygon points="-100,10 0,60 100,10 0,-40" fill="rgba(24, 29, 36, 0.1)"/>
+                    <!-- Switch Body -->
+                    <polygon points="0,10 100,-40 100,-25 0,25" fill="#0075DB" />
+                    <polygon points="-100,-40 0,10 0,25 -100,-25" fill="#181D24" />
+                    <polygon points="-100,-40 0,10 100,-40 0,-90" fill="#757D86" />
+                    
+                    <!-- Port Indicators -->
+                    <polygon id="swa-p1" points="-60,-20 -50,-15 -50,-10 -60,-15" fill="#757D86" style="transition: fill 0.5s ease;"/>
+                    <text id="swa-lbl-p1" x="-80" y="-30" font-family="monospace" font-size="10" fill="#181D24" opacity="0">Acc: 10</text>
+                    
+                    <polygon id="swa-p2" points="-20,0 -10,5 -10,10 -20,5" fill="#757D86" style="transition: fill 0.5s ease;"/>
+                    <text id="swa-lbl-p2" x="-40" y="-10" font-family="monospace" font-size="10" fill="#181D24" opacity="0">Acc: 20</text>
+                    
+                    <polygon id="swa-ptrunk" points="60,-20 50,-15 50,-10 60,-15" fill="#757D86" style="transition: fill 0.5s ease;"/>
+                    <text id="swa-lbl-ptrunk" x="40" y="-30" font-family="monospace" font-size="10" fill="#181D24" opacity="0">Trunk</text>
+
+                    <text x="0" y="-115" font-family="system-ui" font-size="18" font-weight="bold" fill="#181D24" text-anchor="middle">סוויץ' A</text>
+                </g>
+            </g>
+
+            <!-- Switch B (Right) -->
+            <g transform="translate(800, 450)">
+                <g class="isometric-hover">
+                    <polygon points="-100,10 0,60 100,10 0,-40" fill="rgba(24, 29, 36, 0.1)"/>
+                    <polygon points="0,10 100,-40 100,-25 0,25" fill="#0075DB" />
+                    <polygon points="-100,-40 0,10 0,25 -100,-25" fill="#181D24" />
+                    <polygon points="-100,-40 0,10 100,-40 0,-90" fill="#757D86" />
+                    
+                    <!-- Port Indicators -->
+                    <polygon id="swb-ptrunk" points="-60,-20 -50,-15 -50,-10 -60,-15" fill="#757D86" style="transition: fill 0.5s ease;"/>
+                    <text id="swb-lbl-ptrunk" x="-80" y="-30" font-family="monospace" font-size="10" fill="#181D24" opacity="0">Trunk</text>
+
+                    <polygon id="swb-p3" points="20,0 10,5 10,10 20,5" fill="#757D86" style="transition: fill 0.5s ease;"/>
+                    <text id="swb-lbl-p3" x="40" y="-10" font-family="monospace" font-size="10" fill="#181D24" opacity="0">Acc: 10</text>
+                    
+                    <polygon id="swb-p4" points="60,-20 50,-15 50,-10 60,-15" fill="#757D86" style="transition: fill 0.5s ease;"/>
+                    <text id="swb-lbl-p4" x="80" y="-30" font-family="monospace" font-size="10" fill="#181D24" opacity="0">Acc: 20</text>
+
+                    <text x="0" y="-115" font-family="system-ui" font-size="18" font-weight="bold" fill="#181D24" text-anchor="middle">סוויץ' B</text>
+                </g>
+            </g>
+
+
+            <!-- ===================== DATA PACKETS ===================== -->
+            <!-- Packet 1 (VLAN 10) -->
+            <g id="packet-1" style="opacity: 0; transform: translate(200px, 250px);">
+                <g transform="translate(0, -40)">
+                    <polygon points="0,12 24,-12 24,6 0,30" fill="#0075DB" />
+                    <polygon points="-24,-12 0,12 0,30 -24,6" fill="#181D24" />
+                    <polygon class="p-top" points="-24,-12 0,12 24,-12 0,-36" fill="#757D86" />
+                    <rect x="-60" y="-75" width="120" height="26" rx="6" fill="#FFFFFF" filter="url(#shadow)" opacity="0.95" />
+                    <text class="p-lbl" x="0" y="-57" font-family="system-ui" font-size="12" font-weight="bold" fill="#181D24" text-anchor="middle" dir="ltr">Data</text>
+                    
+                    <g class="p-tag" style="opacity:0" transform="translate(0, -15)">
+                        <polygon points="24,-12 36,-18 36,0 24,6" fill="#181D24" />
+                        <polygon class="p-tag-col" points="0,-24 24,-12 24,6 0,-6" fill="#2EB4FF" />
+                        <text class="p-tag-txt" x="12" y="-4" font-family="monospace" font-size="10" font-weight="bold" fill="#181D24" text-anchor="middle" transform="skewY(26)">T:10</text>
+                    </g>
+
+                    <g class="p-drop" style="opacity:0" transform="translate(0, -10)">
+                        <line x1="-15" y1="-15" x2="15" y2="15" stroke="#181D24" stroke-width="6" stroke-linecap="round"/>
+                        <line x1="15" y1="-15" x2="-15" y2="15" stroke="#181D24" stroke-width="6" stroke-linecap="round"/>
+                    </g>
+                </g>
+            </g>
+
+            <!-- Packet 2 (VLAN 20) -->
+            <g id="packet-2" style="opacity: 0; transform: translate(200px, 650px);">
+                <g transform="translate(0, -40)">
+                    <polygon points="0,12 24,-12 24,6 0,30" fill="#0075DB" />
+                    <polygon points="-24,-12 0,12 0,30 -24,6" fill="#181D24" />
+                    <polygon class="p-top" points="-24,-12 0,12 24,-12 0,-36" fill="#757D86" />
+                    <rect x="-60" y="-75" width="120" height="26" rx="6" fill="#FFFFFF" filter="url(#shadow)" opacity="0.95" />
+                    <text class="p-lbl" x="0" y="-57" font-family="system-ui" font-size="12" font-weight="bold" fill="#181D24" text-anchor="middle" dir="ltr">Data</text>
+                    
+                    <g class="p-tag" style="opacity:0" transform="translate(0, -15)">
+                        <polygon points="24,-12 36,-18 36,0 24,6" fill="#181D24" />
+                        <polygon class="p-tag-col" points="0,-24 24,-12 24,6 0,-6" fill="#0075DB" />
+                        <text class="p-tag-txt" x="12" y="-4" font-family="monospace" font-size="10" font-weight="bold" fill="#FFFFFF" text-anchor="middle" transform="skewY(26)">T:20</text>
+                    </g>
+
+                    <g class="p-drop" style="opacity:0" transform="translate(0, -10)">
+                        <line x1="-15" y1="-15" x2="15" y2="15" stroke="#181D24" stroke-width="6" stroke-linecap="round"/>
+                        <line x1="15" y1="-15" x2="-15" y2="15" stroke="#181D24" stroke-width="6" stroke-linecap="round"/>
+                    </g>
+                </g>
+            </g>
+
+        </svg>
+    </div>
+
+    <!-- ===================== UI PANEL ===================== -->
+    <div class="ui-panel">
+        <div class="step-indicator">
+            <div class="dot active" id="dot-0"></div>
+            <div class="dot" id="dot-1"></div>
+            <div class="dot" id="dot-2"></div>
+            <div class="dot" id="dot-3"></div>
+            <div class="dot" id="dot-4"></div>
+            <div class="dot" id="dot-5"></div>
+        </div>
+        <h2 id="ui-title">מבוא ל-VLANs ו-Trunking</h2>
+        <p id="ui-desc">רשתות וירטואליות (VLANs) מאפשרות לנו לפצל סוויץ' פיזי אחד למספר סוויצ'ים לוגיים נפרדים. זה משפר אבטחה וביצועים. בואו נראה איך זה עובד!</p>
+        <div class="controls">
+            <button id="next-btn" onclick="nextStep()">התחל סימולציה</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Positions ---
+    const pos = {
+        pc1: { x: 200, y: 250 },
+        pc2: { x: 200, y: 650 },
+        swa: { x: 400, y: 450 },
+        swb: { x: 800, y: 450 },
+        pc3: { x: 1000, y: 250 },
+        pc4: { x: 1000, y: 650 }
+    };
+    
+    // Palette
+    const colors = {
+        vlan10: '#2EB4FF', // Light Blue (HR)
+        vlan20: '#0075DB', // Dark Blue (IT)
+        trunk: 'url(#trunk-grad)', // Correctly mapped gradient!
+        gray: '#757D86',
+        dark: '#181D24'
+    };
+
+    let currentStep = 0;
+    let isAnimating = false;
+
+    // DOM Elements
+    const uiTitle = document.getElementById('ui-title');
+    const uiDesc = document.getElementById('ui-desc');
+    const nextBtn = document.getElementById('next-btn');
+    
+    // Screens & Labels
+    const scPc1 = document.getElementById('screen-pc1'); const lblPc1 = document.getElementById('lbl-pc1');
+    const scPc2 = document.getElementById('screen-pc2'); const lblPc2 = document.getElementById('lbl-pc2');
+    const scPc3 = document.getElementById('screen-pc3'); const lblPc3 = document.getElementById('lbl-pc3');
+    const scPc4 = document.getElementById('screen-pc4'); const lblPc4 = document.getElementById('lbl-pc4');
+    
+    // Wires
+    const wPc1 = document.getElementById('wire-pc1');
+    const wPc2 = document.getElementById('wire-pc2');
+    const wPc3 = document.getElementById('wire-pc3');
+    const wPc4 = document.getElementById('wire-pc4');
+    const wTrunk = document.getElementById('wire-trunk');
+
+    // Switch Ports
+    const swaP1 = document.getElementById('swa-p1'); const swaLblP1 = document.getElementById('swa-lbl-p1');
+    const swaP2 = document.getElementById('swa-p2'); const swaLblP2 = document.getElementById('swa-lbl-p2');
+    const swaPTrunk = document.getElementById('swa-ptrunk'); const swaLblPTrunk = document.getElementById('swa-lbl-ptrunk');
+    const swbPTrunk = document.getElementById('swb-ptrunk'); const swbLblPTrunk = document.getElementById('swb-lbl-ptrunk');
+    const swbP3 = document.getElementById('swb-p3'); const swbLblP3 = document.getElementById('swb-lbl-p3');
+    const swbP4 = document.getElementById('swb-p4'); const swbLblP4 = document.getElementById('swb-lbl-p4');
+
+    // Helper to setup packet styles dynamically
+    function setupPacket(id, text, color, tagText, tagColor, showDrop = false, showTag = false) {
+        const el = document.getElementById(id);
+        el.querySelector('.p-top').setAttribute('fill', color);
+        el.querySelector('.p-lbl').textContent = text;
+        el.querySelector('.p-lbl').style.fill = color;
+        el.querySelector('.p-drop').style.opacity = showDrop ? '1' : '0';
+        
+        const tag = el.querySelector('.p-tag');
+        tag.style.opacity = showTag ? '1' : '0';
+        tag.style.transform = showTag ? 'translate(0, -25)' : 'translate(0, -15)';
+        
+        if(tagText) el.querySelector('.p-tag-txt').textContent = tagText;
+        if(tagColor) el.querySelector('.p-tag-col').setAttribute('fill', tagColor);
+    }
+
+    // Waypoint animator for specific packet
+    function triggerJourney(id, legs, onComplete) {
+        const el = document.getElementById(id);
+        el.style.transition = 'none';
+        el.style.transform = `translate(${legs[0].x}px, ${legs[0].y}px)`;
+        el.style.opacity = '0';
+
+        if (legs[0].action) legs[0].action(id);
+
+        let currentLeg = 1;
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                el.style.opacity = '1';
+                moveToNextLeg();
+            });
+        });
+
+        function moveToNextLeg() {
+            if (currentLeg >= legs.length) {
+                setTimeout(() => { el.style.opacity = '0'; }, 500);
+                if (onComplete) onComplete();
+                return;
+            }
+
+            const leg = legs[currentLeg];
+            const duration = leg.duration || 1.0;
+
+            el.style.transition = `transform ${duration}s cubic-bezier(0.4, 0, 0.2, 1)`;
+            el.style.transform = `translate(${leg.x}px, ${leg.y}px)`;
+
+            setTimeout(() => {
+                if (leg.action) leg.action(id);
+                currentLeg++;
+                setTimeout(moveToNextLeg, 200);
+            }, duration * 1000);
+        }
+    }
+
+
+    // --- State Machine ---
+    const stepsData = [
+        {
+            title: "מבוא ל-VLANs ו-Trunking",
+            desc: "רשתות וירטואליות (VLANs) מאפשרות לנו לפצל סוויץ' פיזי אחד למספר סוויצ'ים לוגיים נפרדים. זה משפר אבטחה, מקטין עומסים (Broadcast Domains) ומאפשר סדר בארגון. נגדיר כעת את הפורטים (Ports).",
+            btn: "התחל סימולציה",
+            action: () => { resetVisuals(); }
+        },
+        {
+            title: "שלב 1: הגדרת Access Ports (מבואות גישה)",
+            desc: "פורט מוגדר כ-Access כשהוא מחובר למחשב קצה. הוא משויך ל-VLAN אחד בלבד, ומעביר מידע 'נקי' וללא תיוג (Untagged). הגדרנו את מחשבים 1 ו-3 ל-VLAN 10, ואת 2 ו-4 ל-VLAN 20.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                scPc1.setAttribute('fill', colors.vlan10); lblPc1.textContent = "VLAN 10"; lblPc1.style.fill = colors.vlan10;
+                scPc3.setAttribute('fill', colors.vlan10); lblPc3.textContent = "VLAN 10"; lblPc3.style.fill = colors.vlan10;
+                wPc1.setAttribute('stroke', colors.vlan10); wPc1.style.opacity = '0.8';
+                wPc3.setAttribute('stroke', colors.vlan10); wPc3.style.opacity = '0.8';
+                swaP1.setAttribute('fill', colors.vlan10); swaLblP1.style.opacity = '1';
+                swbP3.setAttribute('fill', colors.vlan10); swbLblP3.style.opacity = '1';
+
+                scPc2.setAttribute('fill', colors.vlan20); lblPc2.textContent = "VLAN 20"; lblPc2.style.fill = colors.vlan20;
+                scPc4.setAttribute('fill', colors.vlan20); lblPc4.textContent = "VLAN 20"; lblPc4.style.fill = colors.vlan20;
+                wPc2.setAttribute('stroke', colors.vlan20); wPc2.style.opacity = '0.8';
+                wPc4.setAttribute('stroke', colors.vlan20); wPc4.style.opacity = '0.8';
+                swaP2.setAttribute('fill', colors.vlan20); swaLblP2.style.opacity = '1';
+                swbP4.setAttribute('fill', colors.vlan20); swbLblP4.style.opacity = '1';
+            }
+        },
+        {
+            title: "שלב 2: בידוד מוחלט (Isolation)",
+            desc: "מה קורה כשמחשב 1 (VLAN 10) מנסה לשלוח מידע למחשב 2 (VLAN 20) באותו סוויץ'? הסוויץ' רואה שהם ברשתות וירטואליות שונות, ולכן הוא חוסם וזורק את המידע מיד.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                isAnimating = true; nextBtn.disabled = true;
+                triggerJourney('packet-1', [
+                    { x: pos.pc1.x, y: pos.pc1.y, action: (id) => setupPacket(id, 'Untagged Data', colors.vlan10) },
+                    { x: pos.swa.x, y: pos.swa.y, duration: 1.2, action: (id) => setupPacket(id, 'Dropped', colors.gray, null, null, true) }
+                ], () => { isAnimating = false; nextBtn.disabled = false; });
+            }
+        },
+        {
+            title: "שלב 3: הבעיה בין סוויצ'ים",
+            desc: "כעת מחשב 1 רוצה לדבר עם מחשב 3. כדי להעביר את המידע, אנחנו צריכים כבל בין הסוויצ'ים. אבל רגע... איך נעביר גם את VLAN 10 וגם את 20 על אותו כבל?",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                document.getElementById('packet-1').style.opacity = '0';
+                wTrunk.setAttribute('stroke', colors.dark);
+                wTrunk.setAttribute('stroke-width', '8');
+                wTrunk.style.opacity = '0.8';
+            }
+        },
+        {
+            title: "שלב 4: הגדרת Trunk Port (עורק מרכזי)",
+            desc: "פורט מוגדר כ-Trunk מסוגל להעביר מידע ממספר רב של VLANs על גבי כבל פיזי יחיד! הגדרנו את הפורטים ל-Trunk והכבל מוכן להעביר תעבורה מעורבת.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                wTrunk.setAttribute('stroke', colors.trunk); 
+                wTrunk.setAttribute('stroke-dasharray', '24 12');
+                wTrunk.classList.add('trunk-animated');
+                
+                swaPTrunk.setAttribute('fill', colors.dark); swaLblPTrunk.style.opacity = '1';
+                swbPTrunk.setAttribute('fill', colors.dark); swbLblPTrunk.style.opacity = '1';
+            }
+        },
+        {
+            title: "שלב 5: התיוג המשותף (802.1Q Tagging)",
+            desc: "כששני המחשבים שולחים מידע בו זמנית, הסוויץ' (SwA) מוסיף לכל חבילה 'תגית' ייחודית (T:10 או T:20). שתיהן עוברות יחד על עורק ה-Trunk המשותף! הסוויץ' המקבל (SwB) מפריד אותן לפי התגיות, מסיר אותן, ומעביר ליעד הנכון.",
+            btn: "התחל מחדש",
+            action: () => { 
+                isAnimating = true; nextBtn.disabled = true;
+                
+                // Packet 1 (VLAN 10) Journey
+                triggerJourney('packet-1', [
+                    { x: pos.pc1.x, y: pos.pc1.y, action: (id) => setupPacket(id, 'Untagged', colors.vlan10) },
+                    { x: pos.swa.x, y: pos.swa.y, duration: 1.2, action: (id) => setupPacket(id, '802.1Q Tagged', colors.vlan10, 'T:10', colors.vlan10, false, true) },
+                    { x: pos.swb.x, y: pos.swb.y, duration: 2.2, action: (id) => setupPacket(id, 'Untagged', colors.vlan10, null, null, false, false) },
+                    { x: pos.pc3.x, y: pos.pc3.y, duration: 1.2, action: () => {
+                        scPc3.setAttribute('fill', '#181D24');
+                        setTimeout(() => scPc3.setAttribute('fill', colors.vlan10), 300);
+                    }}
+                ]);
+
+                // Packet 2 (VLAN 20) Journey - starts a tiny bit later to flow side-by-side on Trunk!
+                setTimeout(() => {
+                    triggerJourney('packet-2', [
+                        { x: pos.pc2.x, y: pos.pc2.y, action: (id) => setupPacket(id, 'Untagged', colors.vlan20) },
+                        { x: pos.swa.x, y: pos.swa.y, duration: 1.2, action: (id) => setupPacket(id, '802.1Q Tagged', colors.vlan20, 'T:20', colors.vlan20, false, true) },
+                        { x: pos.swb.x, y: pos.swb.y, duration: 2.2, action: (id) => setupPacket(id, 'Untagged', colors.vlan20, null, null, false, false) },
+                        { x: pos.pc4.x, y: pos.pc4.y, duration: 1.2, action: () => {
+                            scPc4.setAttribute('fill', '#181D24');
+                            setTimeout(() => scPc4.setAttribute('fill', colors.vlan20), 300);
+                        }}
+                    ]);
+                }, 800); // 800ms offset
+
+                // Unlock UI when both finish
+                setTimeout(() => { isAnimating = false; nextBtn.disabled = false; }, 6500);
+            }
+        }
+    ];
+
+    function nextStep() {
+        if (isAnimating) return;
+        currentStep++;
+        if (currentStep >= stepsData.length) currentStep = 0;
+        updateUI();
+        stepsData[currentStep].action();
+    }
+
+    function updateUI() {
+        const data = stepsData[currentStep];
+        uiTitle.innerText = data.title;
+        uiDesc.innerText = data.desc;
+        nextBtn.innerText = data.btn;
+
+        for(let i=0; i<6; i++) {
+            const dot = document.getElementById(`dot-${i}`);
+            if (i < currentStep) dot.className = "dot completed";
+            else if (i === currentStep) dot.className = "dot active";
+            else dot.className = "dot";
+        }
+    }
+
+    function resetVisuals() {
+        document.getElementById('packet-1').style.transition = 'none';
+        document.getElementById('packet-1').style.opacity = '0';
+        document.getElementById('packet-2').style.transition = 'none';
+        document.getElementById('packet-2').style.opacity = '0';
+        
+        // Reset PCs
+        scPc1.setAttribute('fill', colors.gray); lblPc1.textContent = "VLAN ??"; lblPc1.style.fill = colors.gray;
+        scPc2.setAttribute('fill', colors.gray); lblPc2.textContent = "VLAN ??"; lblPc2.style.fill = colors.gray;
+        scPc3.setAttribute('fill', colors.gray); lblPc3.textContent = "VLAN ??"; lblPc3.style.fill = colors.gray;
+        scPc4.setAttribute('fill', colors.gray); lblPc4.textContent = "VLAN ??"; lblPc4.style.fill = colors.gray;
+        
+        // Reset Wires
+        wPc1.setAttribute('stroke', colors.gray); wPc1.style.opacity = '0.5';
+        wPc2.setAttribute('stroke', colors.gray); wPc2.style.opacity = '0.5';
+        wPc3.setAttribute('stroke', colors.gray); wPc3.style.opacity = '0.5';
+        wPc4.setAttribute('stroke', colors.gray); wPc4.style.opacity = '0.5';
+        wTrunk.setAttribute('stroke', colors.gray); wTrunk.style.opacity = '0.5';
+        wTrunk.setAttribute('stroke-width', '4');
+        wTrunk.classList.remove('trunk-animated');
+        wTrunk.removeAttribute('stroke-dasharray');
+        
+        // Reset Ports
+        swaP1.setAttribute('fill', colors.gray); swaLblP1.style.opacity = '0';
+        swaP2.setAttribute('fill', colors.gray); swaLblP2.style.opacity = '0';
+        swaPTrunk.setAttribute('fill', colors.gray); swaLblPTrunk.style.opacity = '0';
+        swbPTrunk.setAttribute('fill', colors.gray); swbLblPTrunk.style.opacity = '0';
+        swbP3.setAttribute('fill', colors.gray); swbLblP3.style.opacity = '0';
+        swbP4.setAttribute('fill', colors.gray); swbLblP4.style.opacity = '0';
+    }
+
+    // Initialize UI
+    updateUI();
+</script>
+</body>
+</html>
