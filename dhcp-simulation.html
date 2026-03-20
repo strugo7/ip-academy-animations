@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -146,8 +145,7 @@
         .isometric-hover {
             transition: transform 0.3s ease;
         }
-
-        g:hover>.isometric-hover {
+        g:hover > .isometric-hover {
             transform: translateY(-5px);
         }
 
@@ -155,329 +153,333 @@
         #pc-screen-glow {
             transition: fill 0.5s ease, opacity 0.5s ease;
         }
+
     </style>
 </head>
-
 <body>
 
-    <div class="container">
-        <div class="stage">
-            <!-- SVG Canvas: 1000x600. Using Isometric ratio dx=2, dy=1 -->
-            <svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
-                <defs>
-                    <!-- Glow Filter -->
-                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur stdDeviation="6" result="blur" />
-                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
+<div class="container">
+    <div class="stage">
+        <!-- SVG Canvas: 1000x600. Using Isometric ratio dx=2, dy=1 -->
+        <svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
+            <defs>
+                <!-- Glow Filter -->
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+                
+                <!-- Screen Gradient -->
+                <linearGradient id="screen-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#181D24" />
+                    <stop offset="100%" stop-color="#757D86" />
+                </linearGradient>
 
-                    <!-- Screen Gradient -->
-                    <linearGradient id="screen-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#181D24" />
-                        <stop offset="100%" stop-color="#757D86" />
-                    </linearGradient>
+                <!-- Active Screen Gradient -->
+                <linearGradient id="screen-active" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#0075DB" />
+                    <stop offset="100%" stop-color="#2EB4FF" />
+                </linearGradient>
+            </defs>
 
-                    <!-- Active Screen Gradient -->
-                    <linearGradient id="screen-active" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#0075DB" />
-                        <stop offset="100%" stop-color="#2EB4FF" />
-                    </linearGradient>
-                </defs>
+            <!-- 1. Background Grid / Floor connection -->
+            <!-- Connection Wire (Dashed Isometric Line from Router to PC) -->
+            <!-- Router center base: 300, 250 | PC center base: 750, 475 (dx=450, dy=225) -->
+            <path d="M 300 250 L 750 475" stroke="#757D86" stroke-width="4" stroke-dasharray="12 8" fill="none" opacity="0.4" />
 
-                <!-- 1. Background Grid / Floor connection -->
-                <!-- Connection Wire (Dashed Isometric Line from Router to PC) -->
-                <!-- Router center base: 300, 250 | PC center base: 750, 475 (dx=450, dy=225) -->
-                <path d="M 300 250 L 750 475" stroke="#757D86" stroke-width="4" stroke-dasharray="12 8" fill="none"
-                    opacity="0.4" />
-
-                <!-- 2. ROUTER (Left/Back Element) -->
-                <!-- Positioned at X:300, Y:250 -->
-                <g id="router-group" class="isometric-hover">
-                    <!-- Shadow -->
-                    <polygon points="220,250 300,290 380,250 300,210" fill="rgba(24, 29, 36, 0.1)"
-                        transform="translate(0, 15)" />
-
-                    <!-- Router Antennas -->
-                    <g stroke="#181D24" stroke-width="6" stroke-linecap="round">
-                        <line x1="260" y1="210" x2="260" y2="130" />
-                        <line x1="280" y1="200" x2="280" y2="120" />
-                    </g>
-                    <g stroke="#757D86" stroke-width="3" stroke-linecap="round">
-                        <line x1="260" y1="210" x2="260" y2="132" />
-                        <line x1="280" y1="200" x2="280" y2="122" />
-                    </g>
-
-                    <!-- Router Body (Isometric Box) -->
-                    <!-- Right Face -->
-                    <polygon points="300,260 380,220 380,240 300,280" fill="#0075DB" />
-                    <!-- Left Face -->
-                    <polygon points="220,220 300,260 300,280 220,240" fill="#181D24" />
-                    <!-- Top Face -->
-                    <polygon points="220,220 300,260 380,220 300,180" fill="#757D86" />
-                    <!-- Router Top detail -->
-                    <polygon points="230,220 300,255 370,220 300,185" fill="#FFFFFF" opacity="0.1" />
-
-                    <!-- Status Lights -->
-                    <circle cx="280" cy="255" r="3" fill="#2EB4FF" filter="url(#glow)" id="router-light-1" />
-                    <circle cx="290" cy="260" r="3" fill="#757D86" id="router-light-2" />
-                    <circle cx="300" cy="265" r="3" fill="#757D86" id="router-light-3" />
-
-                    <!-- Label -->
-                    <text x="300" y="90" font-family="system-ui" font-size="16" font-weight="bold" fill="#181D24"
-                        text-anchor="middle">ראוטר (DHCP)</text>
+            <!-- 2. ROUTER (Left/Back Element) -->
+            <!-- Positioned at X:300, Y:250 -->
+            <g id="router-group" class="isometric-hover">
+                <!-- Shadow -->
+                <polygon points="220,250 300,290 380,250 300,210" fill="rgba(24, 29, 36, 0.1)" transform="translate(0, 15)"/>
+                
+                <!-- Router Antennas -->
+                <g stroke="#181D24" stroke-width="6" stroke-linecap="round">
+                    <line x1="260" y1="210" x2="260" y2="130" />
+                    <line x1="280" y1="200" x2="280" y2="120" />
+                </g>
+                <g stroke="#757D86" stroke-width="3" stroke-linecap="round">
+                    <line x1="260" y1="210" x2="260" y2="132" />
+                    <line x1="280" y1="200" x2="280" y2="122" />
                 </g>
 
-                <!-- 3. PC CLIENT (Right/Front Element) -->
-                <!-- Positioned at X:750, Y:475 -->
-                <g id="pc-group" class="isometric-hover">
-                    <!-- Shadow -->
-                    <polygon points="650,475 750,525 850,475 750,425" fill="rgba(24, 29, 36, 0.1)"
-                        transform="translate(0, 10)" />
+                <!-- Router Body (Isometric Box) -->
+                <!-- Right Face -->
+                <polygon points="300,260 380,220 380,240 300,280" fill="#0075DB" />
+                <!-- Left Face -->
+                <polygon points="220,220 300,260 300,280 220,240" fill="#181D24" />
+                <!-- Top Face -->
+                <polygon points="220,220 300,260 380,220 300,180" fill="#757D86" />
+                <!-- Router Top detail -->
+                <polygon points="230,220 300,255 370,220 300,185" fill="#FFFFFF" opacity="0.1" />
 
-                    <!-- Laptop Base -->
-                    <!-- Right Face -->
-                    <polygon points="750,490 850,440 850,450 750,500" fill="#0075DB" />
-                    <!-- Left Face -->
-                    <polygon points="650,440 750,490 750,500 650,450" fill="#181D24" />
-                    <!-- Top Face (Keyboard) -->
-                    <polygon points="650,440 750,490 850,440 750,390" fill="#757D86" />
-                    <!-- Keyboard dark area -->
-                    <polygon points="670,435 745,472 820,435 745,398" fill="#181D24" opacity="0.6" />
+                <!-- Status Lights -->
+                <circle cx="280" cy="255" r="3" fill="#2EB4FF" filter="url(#glow)" id="router-light-1"/>
+                <circle cx="290" cy="260" r="3" fill="#757D86" id="router-light-2"/>
+                <circle cx="300" cy="265" r="3" fill="#757D86" id="router-light-3"/>
 
-                    <!-- Laptop Screen -->
-                    <!-- Screen Back Face (hidden mostly but provides edge) -->
-                    <!-- Screen Front/Inner Face -->
-                    <!-- Corner points: Bottom-Left:650,440 | Bottom-Right:750,390 | Top-Left:650,330 | Top-Right:750,280 -->
-                    <polygon points="650,440 750,390 750,280 650,330" fill="#181D24" />
-                    <!-- Screen Glow/Display Area -->
-                    <polygon id="pc-screen-glow" points="655,432 745,387 745,288 655,333"
-                        fill="url(#screen-gradient)" />
+                <!-- Label -->
+                <text x="300" y="90" font-family="system-ui" font-size="16" font-weight="bold" fill="#181D24" text-anchor="middle">ראוטר (DHCP)</text>
+            </g>
 
-                    <!-- Label -->
-                    <text x="750" y="240" font-family="system-ui" font-size="16" font-weight="bold" fill="#181D24"
-                        text-anchor="middle">מחשב (Client)</text>
+            <!-- 3. PC CLIENT (Right/Front Element) -->
+            <!-- Positioned at X:750, Y:475 -->
+            <g id="pc-group" class="isometric-hover">
+                <!-- Shadow -->
+                <polygon points="650,475 750,525 850,475 750,425" fill="rgba(24, 29, 36, 0.1)" transform="translate(0, 10)"/>
 
-                    <!-- Floating IP Address (Hidden initially) -->
-                    <g id="floating-ip" opacity="0" transform="translate(0, 20)">
-                        <rect x="680" y="295" width="140" height="30" rx="6" fill="#FFFFFF" filter="url(#glow)" />
-                        <text x="750" y="315" font-family="monospace" font-size="14" font-weight="bold" fill="#0075DB"
-                            text-anchor="middle" dir="ltr">IP: 192.168.1.50</text>
-                    </g>
+                <!-- Laptop Base -->
+                <!-- Right Face -->
+                <polygon points="750,490 850,440 850,450 750,500" fill="#0075DB" />
+                <!-- Left Face -->
+                <polygon points="650,440 750,490 750,500 650,450" fill="#181D24" />
+                <!-- Top Face (Keyboard) -->
+                <polygon points="650,440 750,490 850,440 750,390" fill="#757D86" />
+                <!-- Keyboard dark area -->
+                <polygon points="670,435 745,472 820,435 745,398" fill="#181D24" opacity="0.6" />
+
+                <!-- Laptop Screen -->
+                <!-- Screen Back Face (hidden mostly but provides edge) -->
+                <!-- Screen Front/Inner Face -->
+                <!-- Corner points: Bottom-Left:650,440 | Bottom-Right:750,390 | Top-Left:650,330 | Top-Right:750,280 -->
+                <polygon points="650,440 750,390 750,280 650,330" fill="#181D24" />
+                <!-- Screen Glow/Display Area -->
+                <polygon id="pc-screen-glow" points="655,432 745,387 745,288 655,333" fill="url(#screen-gradient)" />
+                
+                <!-- Label -->
+                <text x="750" y="240" font-family="system-ui" font-size="16" font-weight="bold" fill="#181D24" text-anchor="middle">מחשב (Client)</text>
+
+                <!-- Floating IP Address (Hidden initially) -->
+                <g id="floating-ip" opacity="0" transform="translate(0, 20)">
+                    <rect x="680" y="295" width="140" height="30" rx="6" fill="#FFFFFF" filter="url(#glow)"/>
+                    <text x="750" y="315" font-family="monospace" font-size="14" font-weight="bold" fill="#0075DB" text-anchor="middle" dir="ltr">IP: 192.168.1.50</text>
                 </g>
+            </g>
 
-                <!-- 4. DATA PACKET (Animation Element) -->
-                <!-- It's placed inside a double-group. The outer sets the position, inner has the visual. -->
-                <g id="packet-container" style="opacity: 0; transform: translate(300px, 250px);">
-                    <g id="packet-visual" transform="translate(0, -30)">
-                        <!-- Isometric Box representing a Packet -->
-                        <polygon points="0,10 20,-10 20,5 0,25" fill="#0075DB" id="packet-right" />
-                        <polygon points="-20,-10 0,10 0,25 -20,5" fill="#181D24" id="packet-left" />
-                        <polygon points="-20,-10 0,10 20,-10 0,-30" fill="#2EB4FF" id="packet-top" />
-
-                        <!-- Floating Packet Label -->
-                        <rect x="-40" y="-55" width="80" height="20" rx="4" fill="#FFFFFF" opacity="0.9" />
-                        <text id="packet-label" x="0" y="-41" font-family="system-ui" font-size="12" font-weight="bold"
-                            fill="#181D24" text-anchor="middle" dir="ltr">Discover</text>
-                    </g>
+            <!-- 4. DATA PACKET (Animation Element) -->
+            <!-- Initialized at the PC position (750, 475) so the first frame doesn't jump -->
+            <g id="packet-container" style="opacity: 0; transform: translate(750px, 475px);">
+                <g id="packet-visual" transform="translate(0, -30)">
+                    <!-- Isometric Box representing a Packet -->
+                    <polygon points="0,10 20,-10 20,5 0,25" fill="#0075DB" id="packet-right" />
+                    <polygon points="-20,-10 0,10 0,25 -20,5" fill="#181D24" id="packet-left" />
+                    <polygon points="-20,-10 0,10 20,-10 0,-30" fill="#2EB4FF" id="packet-top" />
+                    
+                    <!-- Floating Packet Label - Made wider to fit 'Request' etc. -->
+                    <rect x="-50" y="-55" width="100" height="20" rx="4" fill="#FFFFFF" opacity="0.9" />
+                    <text id="packet-label" x="0" y="-41" font-family="system-ui" font-size="12" font-weight="bold" fill="#181D24" text-anchor="middle" dir="ltr">Discover</text>
                 </g>
-            </svg>
-        </div>
-
-        <div class="ui-panel">
-            <div class="step-indicator">
-                <div class="dot active" id="dot-0"></div>
-                <div class="dot" id="dot-1"></div>
-                <div class="dot" id="dot-2"></div>
-                <div class="dot" id="dot-3"></div>
-                <div class="dot" id="dot-4"></div>
-            </div>
-            <h2 id="ui-title">תהליך DHCP (DORA)</h2>
-            <p id="ui-desc">ברוכים הבאים! ראוטר ביתי משמש גם כשרת DHCP המחלק כתובות IP למכשירים ברשת. לחץ על 'התחל' כדי
-                לראות איך מחשב חדש מקבל כתובת.</p>
-            <div class="controls">
-                <button id="next-btn" onclick="nextStep()">התחל תהליך</button>
-            </div>
-        </div>
+            </g>
+        </svg>
     </div>
 
-    <script>
-        // --- Configuration & Constants ---
-        const routerPos = { x: 300, y: 250 };
-        const pcPos = { x: 750, y: 475 };
+    <div class="ui-panel">
+        <div class="step-indicator">
+            <div class="dot active" id="dot-0"></div>
+            <div class="dot" id="dot-1"></div>
+            <div class="dot" id="dot-2"></div>
+            <div class="dot" id="dot-3"></div>
+            <div class="dot" id="dot-4"></div>
+        </div>
+        <h2 id="ui-title">תהליך DHCP (DORA)</h2>
+        <p id="ui-desc">ברוכים הבאים! ראוטר ביתי משמש גם כשרת DHCP המחלק כתובות IP למכשירים ברשת. לחץ על 'התחל' כדי לראות איך מחשב חדש מקבל כתובת.</p>
+        <div class="controls">
+            <button id="next-btn" onclick="nextStep()">התחל תהליך</button>
+        </div>
+    </div>
+</div>
 
-        // Palette Mapping
-        const colors = {
-            discover: '#757D86', // Gray
-            offer: '#0075DB',    // Dark Blue
-            request: '#181D24',  // Dark
-            ack: '#2EB4FF'       // Light Blue
-        };
+<script>
+    // --- Configuration & Constants ---
+    const routerPos = { x: 300, y: 250 };
+    const pcPos = { x: 750, y: 475 };
+    
+    // Palette Mapping
+    const colors = {
+        discover: '#757D86', // Gray
+        offer: '#0075DB',    // Dark Blue
+        request: '#181D24',  // Dark
+        ack: '#2EB4FF'       // Light Blue
+    };
 
-        let currentStep = 0;
-        let isAnimating = false;
+    let currentStep = 0;
+    let isAnimating = false;
 
-        // DOM Elements
-        const packetContainer = document.getElementById('packet-container');
-        const packetLabel = document.getElementById('packet-label');
-        const packetTop = document.getElementById('packet-top');
-        const packetLeft = document.getElementById('packet-left');
-        const packetRight = document.getElementById('packet-right');
+    // DOM Elements
+    const packetContainer = document.getElementById('packet-container');
+    const packetLabel = document.getElementById('packet-label');
+    const packetTop = document.getElementById('packet-top');
+    const packetLeft = document.getElementById('packet-left');
+    const packetRight = document.getElementById('packet-right');
+    
+    const uiTitle = document.getElementById('ui-title');
+    const uiDesc = document.getElementById('ui-desc');
+    const nextBtn = document.getElementById('next-btn');
+    
+    const pcScreenGlow = document.getElementById('pc-screen-glow');
+    const floatingIp = document.getElementById('floating-ip');
+    const routerLight2 = document.getElementById('router-light-2');
+    const routerLight3 = document.getElementById('router-light-3');
 
-        const uiTitle = document.getElementById('ui-title');
-        const uiDesc = document.getElementById('ui-desc');
-        const nextBtn = document.getElementById('next-btn');
-
-        const pcScreenGlow = document.getElementById('pc-screen-glow');
-        const floatingIp = document.getElementById('floating-ip');
-        const routerLight2 = document.getElementById('router-light-2');
-        const routerLight3 = document.getElementById('router-light-3');
-
-        // --- State Machine ---
-        const stepsData = [
-            {
-                title: "תהליך DHCP (DORA)",
-                desc: "ברוכים הבאים! ראוטר ביתי משמש גם כשרת DHCP המחלק כתובות IP למכשירים ברשת. ברגע שמחשב מתחבר, הוא צריך כתובת כדי לגלוש. לחץ על 'התחל תהליך'.",
-                btn: "התחל תהליך",
-                action: () => { resetVisuals(); }
-            },
-            {
-                title: "שלב 1: Discover (גילוי)",
-                desc: "המחשב מתחבר לרשת ושולח הודעת 'Broadcast' לכל המכשירים: 'היי, יש כאן שרת DHCP שיכול לתת לי כתובת IP?'.",
-                btn: "המשך לשלב הבא",
-                action: () => {
-                    triggerPacketAnim(pcPos, routerPos, 'Discover', colors.discover, () => {
-                        blinkRouterLight(routerLight2, colors.discover);
-                    });
-                }
-            },
-            {
-                title: "שלב 2: Offer (הצעה)",
-                desc: "הראוטר (ה-DHCP) שומע את הבקשה, בודק במאגר הכתובות הפנויות שלו, ושולח חזרה הודעה למחשב: 'כן, אני כאן. אני מציע לך את הכתובת 192.168.1.50'.",
-                btn: "המשך לשלב הבא",
-                action: () => {
-                    triggerPacketAnim(routerPos, pcPos, 'Offer', colors.offer);
-                }
-            },
-            {
-                title: "שלב 3: Request (בקשה)",
-                desc: "המחשב עונה לראוטר: 'תודה רבה! אני מעוניין להשתמש בכתובת 192.168.1.50 שהצעת לי. אנא רשום אותה על שמי'.",
-                btn: "המשך לשלב הבא",
-                action: () => {
-                    triggerPacketAnim(pcPos, routerPos, 'Request', colors.request, () => {
-                        blinkRouterLight(routerLight3, colors.ack);
-                    });
-                }
-            },
-            {
-                title: "שלב 4: Acknowledge (אישור)",
-                desc: "הראוטר מאשר (ACK), רושם אצלו שהכתובת תפוסה, ושולח אישור סופי למחשב. המחשב כעת מחובר לרשת ויכול לגלוש!",
-                btn: "התחל מחדש",
-                action: () => {
-                    triggerPacketAnim(routerPos, pcPos, 'ACK', colors.ack, () => {
-                        activatePC();
-                    });
-                }
+    // --- State Machine ---
+    const stepsData = [
+        {
+            title: "תהליך DHCP (DORA)",
+            desc: "ברוכים הבאים! ראוטר ביתי משמש גם כשרת DHCP המחלק כתובות IP למכשירים ברשת. ברגע שמחשב מתחבר, הוא צריך כתובת כדי לגלוש. לחץ על 'התחל תהליך'.",
+            btn: "התחל תהליך",
+            action: () => { resetVisuals(); }
+        },
+        {
+            title: "שלב 1: Discover (גילוי)",
+            desc: "המחשב מתחבר לרשת ושולח הודעת 'Broadcast' לכל המכשירים: 'היי, יש כאן שרת DHCP שיכול לתת לי כתובת IP?'.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                // Discover: PC -> Router
+                triggerPacketAnim(pcPos, routerPos, 'Discover', colors.discover, () => {
+                    blinkRouterLight(routerLight2, colors.discover);
+                }); 
             }
-        ];
-
-        // --- Functions ---
-
-        function nextStep() {
-            if (isAnimating) return;
-
-            currentStep++;
-            if (currentStep >= stepsData.length) {
-                currentStep = 0; // Reset
+        },
+        {
+            title: "שלב 2: Offer (הצעה)",
+            desc: "הראוטר (ה-DHCP) שומע את הבקשה, בודק במאגר הכתובות הפנויות שלו, ושולח חזרה הודעה למחשב: 'כן, אני כאן. אני מציע לך את הכתובת 192.168.1.50'.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                // Offer: Router -> PC
+                triggerPacketAnim(routerPos, pcPos, 'Offer', colors.offer); 
             }
-
-            updateUI();
-            stepsData[currentStep].action();
-        }
-
-        function updateUI() {
-            const data = stepsData[currentStep];
-            uiTitle.innerText = data.title;
-            uiDesc.innerText = data.desc;
-            nextBtn.innerText = data.btn;
-
-            // Update dots
-            for (let i = 0; i < 5; i++) {
-                const dot = document.getElementById(`dot-${i}`);
-                if (i < currentStep) {
-                    dot.className = "dot completed";
-                } else if (i === currentStep) {
-                    dot.className = "dot active";
-                } else {
-                    dot.className = "dot";
-                }
+        },
+        {
+            title: "שלב 3: Request (בקשה)",
+            desc: "המחשב עונה לראוטר: 'תודה רבה! אני מעוניין להשתמש בכתובת 192.168.1.50 שהצעת לי. אנא רשום אותה על שמי'.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                // Request: PC -> Router
+                triggerPacketAnim(pcPos, routerPos, 'Request', colors.request, () => {
+                    blinkRouterLight(routerLight3, colors.ack);
+                }); 
+            }
+        },
+        {
+            title: "שלב 4: Acknowledge (אישור)",
+            desc: "הראוטר מאשר (ACK), רושם אצלו שהכתובת תפוסה, ושולח אישור סופי למחשב. המחשב כעת מחובר לרשת ויכול לגלוש!",
+            btn: "התחל מחדש",
+            action: () => { 
+                // ACK: Router -> PC
+                triggerPacketAnim(routerPos, pcPos, 'ACK', colors.ack, () => {
+                    activatePC();
+                }); 
             }
         }
+    ];
 
-        function triggerPacketAnim(from, to, text, mainColor, onComplete) {
-            isAnimating = true;
-            nextBtn.disabled = true;
-
-            // Set colors based on the state
-            packetTop.setAttribute('fill', mainColor);
-            packetLabel.innerText = text;
-            packetLabel.style.fill = mainColor;
-
-            // Teleport packet to start position (without transition)
-            packetContainer.style.transition = 'none';
-            packetContainer.style.transform = `translate(${from.x}px, ${from.y}px)`;
-            packetContainer.style.opacity = '0';
-
-            // Force reflow
-            void packetContainer.offsetWidth;
-
-            // Start animation
-            packetContainer.style.transition = 'transform 1.8s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease';
-            packetContainer.style.opacity = '1';
-            packetContainer.style.transform = `translate(${to.x}px, ${to.y}px)`;
-
-            // Handle animation end
-            setTimeout(() => {
-                packetContainer.style.opacity = '0'; // Hide after arrival
-                isAnimating = false;
-                nextBtn.disabled = false;
-                if (onComplete) onComplete();
-            }, 1800);
+    // --- Functions ---
+    
+    function nextStep() {
+        if (isAnimating) return;
+        
+        currentStep++;
+        if (currentStep >= stepsData.length) {
+            currentStep = 0; // Reset
         }
 
-        function blinkRouterLight(lightEl, color) {
-            lightEl.setAttribute('fill', color);
-            lightEl.setAttribute('filter', 'url(#glow)');
-            setTimeout(() => {
-                lightEl.setAttribute('fill', '#757D86');
-                lightEl.removeAttribute('filter');
-            }, 1000);
-        }
-
-        function activatePC() {
-            pcScreenGlow.setAttribute('fill', 'url(#screen-active)');
-
-            // Float IP up
-            floatingIp.style.transition = 'opacity 0.5s ease, transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-            floatingIp.style.opacity = '1';
-            floatingIp.setAttribute('transform', 'translate(0, 0)');
-        }
-
-        function resetVisuals() {
-            packetContainer.style.opacity = '0';
-            pcScreenGlow.setAttribute('fill', 'url(#screen-gradient)');
-
-            floatingIp.style.transition = 'none';
-            floatingIp.style.opacity = '0';
-            floatingIp.setAttribute('transform', 'translate(0, 20)');
-
-            routerLight2.setAttribute('fill', '#757D86');
-            routerLight3.setAttribute('fill', '#757D86');
-        }
-
-        // Initialize
         updateUI();
+        stepsData[currentStep].action();
+    }
 
-    </script>
+    function updateUI() {
+        const data = stepsData[currentStep];
+        uiTitle.innerText = data.title;
+        uiDesc.innerText = data.desc;
+        nextBtn.innerText = data.btn;
+
+        // Update dots
+        for(let i=0; i<5; i++) {
+            const dot = document.getElementById(`dot-${i}`);
+            if (i < currentStep) {
+                dot.className = "dot completed";
+            } else if (i === currentStep) {
+                dot.className = "dot active";
+            } else {
+                dot.className = "dot";
+            }
+        }
+    }
+
+    function triggerPacketAnim(from, to, text, mainColor, onComplete) {
+        isAnimating = true;
+        nextBtn.disabled = true;
+
+        // Set colors based on the state
+        packetTop.setAttribute('fill', mainColor);
+        
+        // FIX: In SVG, use textContent instead of innerText
+        packetLabel.textContent = text;
+        packetLabel.style.fill = mainColor;
+
+        // FIX: Cancel transition immediately to prevent "ghost flying"
+        packetContainer.style.transition = 'none';
+        
+        // Teleport packet to start position 
+        packetContainer.style.transform = `translate(${from.x}px, ${from.y}px)`;
+        packetContainer.style.opacity = '0';
+
+        // FIX: Double requestAnimationFrame forces the browser to apply the 
+        // teleport coordinates BEFORE starting the new transition.
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                // Start animation
+                packetContainer.style.transition = 'transform 1.8s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease';
+                packetContainer.style.opacity = '1';
+                packetContainer.style.transform = `translate(${to.x}px, ${to.y}px)`;
+            });
+        });
+
+        // Handle animation end
+        setTimeout(() => {
+            packetContainer.style.opacity = '0'; // Hide after arrival
+            isAnimating = false;
+            nextBtn.disabled = false;
+            if (onComplete) onComplete();
+        }, 1800);
+    }
+
+    function blinkRouterLight(lightEl, color) {
+        lightEl.setAttribute('fill', color);
+        lightEl.setAttribute('filter', 'url(#glow)');
+        setTimeout(() => {
+            lightEl.setAttribute('fill', '#757D86');
+            lightEl.removeAttribute('filter');
+        }, 1000);
+    }
+
+    function activatePC() {
+        pcScreenGlow.setAttribute('fill', 'url(#screen-active)');
+        
+        // Float IP up
+        floatingIp.style.transition = 'opacity 0.5s ease, transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        floatingIp.style.opacity = '1';
+        floatingIp.setAttribute('transform', 'translate(0, 0)');
+    }
+
+    function resetVisuals() {
+        packetContainer.style.transition = 'none';
+        packetContainer.style.opacity = '0';
+        packetContainer.style.transform = `translate(${pcPos.x}px, ${pcPos.y}px)`;
+        
+        pcScreenGlow.setAttribute('fill', 'url(#screen-gradient)');
+        
+        floatingIp.style.transition = 'none';
+        floatingIp.style.opacity = '0';
+        floatingIp.setAttribute('transform', 'translate(0, 20)');
+        
+        routerLight2.setAttribute('fill', '#757D86');
+        routerLight3.setAttribute('fill', '#757D86');
+    }
+
+    // Initialize
+    updateUI();
+
+</script>
 </body>
-
 </html>
