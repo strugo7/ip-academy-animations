@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNS Process Animation</title>
+    <style>
+        :root {
+            --color-light-blue: #2EB4FF;
+            --color-dark-blue: #0075DB;
+            --color-gray: #757D86;
+            --color-dark: #181D24;
+            --color-bg: #FFFFFF;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--color-bg);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            color: var(--color-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stage {
+            flex-grow: 1;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            max-height: 65vh;
+            filter: drop-shadow(0 20px 30px rgba(24, 29, 36, 0.05));
+        }
+
+        .ui-panel {
+            background: var(--color-bg);
+            border-top: 4px solid var(--color-dark-blue);
+            box-shadow: 0 -10px 40px rgba(117, 125, 134, 0.15);
+            padding: 2rem;
+            border-radius: 24px 24px 0 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-height: 220px;
+        }
+
+        .step-indicator {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--color-gray);
+            opacity: 0.3;
+            transition: all 0.3s ease;
+        }
+
+        .dot.active {
+            background-color: var(--color-light-blue);
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        .dot.completed {
+            background-color: var(--color-dark-blue);
+            opacity: 1;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: var(--color-dark-blue);
+        }
+
+        p {
+            margin: 0;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: var(--color-gray);
+            flex-grow: 1;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+
+        button {
+            background-color: var(--color-dark-blue);
+            color: var(--color-bg);
+            border: none;
+            padding: 12px 32px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 117, 219, 0.3);
+        }
+
+        button:hover {
+            background-color: var(--color-light-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(46, 180, 255, 0.4);
+        }
+
+        button:disabled {
+            background-color: var(--color-gray);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            opacity: 0.7;
+        }
+
+        .isometric-hover {
+            transition: transform 0.3s ease;
+        }
+        g:hover > .isometric-hover {
+            transform: translateY(-8px);
+        }
+
+        #dns-table {
+            transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="stage">
+        <!-- SVG Canvas (1200x800) -->
+        <!-- Center coordinates logic:
+             PC: 650, 550
+             Local DNS: 350, 400 (dx=-300, dy=-150 from PC) -> Isometric!
+             Global DNS: 150, 300 (dx=-200, dy=-100 from Local DNS) -> Isometric!
+             Web Server: 950, 400 (dx=+300, dy=-150 from PC) -> Isometric!
+        -->
+        <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet">
+            <defs>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+                <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+                    <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#181D24" flood-opacity="0.15"/>
+                </filter>
+            </defs>
+
+            <!-- ===================== DOM ORDER 1: WIRES ===================== -->
+            <!-- Global DNS (150, 300) to Local DNS (350, 400) -->
+            <path d="M 150 300 L 350 400" stroke="#757D86" stroke-width="4" stroke-dasharray="8 6" fill="none" opacity="0.4" />
+            <!-- Local DNS (350, 400) to PC (650, 550) -->
+            <path d="M 350 400 L 650 550" stroke="#757D86" stroke-width="5" fill="none" opacity="0.6" />
+            <!-- PC (650, 550) to Web Server (950, 400) -->
+            <!-- We make this line dashed initially to show it's a future connection -->
+            <path id="web-wire" d="M 650 550 L 950 400" stroke="#2EB4FF" stroke-width="4" stroke-dasharray="8 6" fill="none" opacity="0.2" />
+
+            <!-- ===================== DOM ORDER 2: GLOBAL DNS (Top Left) ===================== -->
+            <g transform="translate(150, 300)">
+                <g class="isometric-hover">
+                    <polygon points="-60,30 0,60 60,30 0,0" fill="rgba(24, 29, 36, 0.1)"/>
+                    
+                    <!-- Stacked Database Servers -->
+                    <!-- Bottom DB -->
+                    <polygon points="0,40 60,10 60,-10 0,20" fill="#0075DB" />
+                    <polygon points="-60,10 0,40 0,20 -60,-10" fill="#181D24" />
+                    <polygon points="-60,-10 0,20 60,-10 0,-40" fill="#757D86" />
+                    <!-- Mid DB -->
+                    <polygon points="0,-5 60,-35 60,-55 0,-25" fill="#0075DB" />
+                    <polygon points="-60,-35 0,-5 0,-25 -60,-55" fill="#181D24" />
+                    <polygon points="-60,-55 0,-25 60,-55 0,-85" fill="#757D86" />
+                    <!-- Top DB -->
+                    <polygon points="0,-50 60,-80 60,-100 0,-70" fill="#2EB4FF" />
+                    <polygon points="-60,-80 0,-50 0,-70 -60,-100" fill="#181D24" />
+                    <polygon points="-60,-100 0,-70 60,-100 0,-130" fill="#757D86" />
+
+                    <circle cx="-20" cy="-65" r="3" fill="#FFFFFF" filter="url(#glow)"/>
+                    <circle cx="-10" cy="-20" r="3" fill="#FFFFFF" filter="url(#glow)"/>
+                    <circle cx="-30" cy="25" r="3" fill="#FFFFFF" filter="url(#glow)"/>
+
+                    <text x="0" y="-155" font-family="system-ui" font-size="16" font-weight="bold" fill="#181D24" text-anchor="middle">מערכת ה-DNS העולמית</text>
+                    <text x="0" y="-135" font-family="system-ui" font-size="12" fill="#757D86" text-anchor="middle">(Root / TLD / Auth)</text>
+                </g>
+            </g>
+
+            <!-- ===================== DOM ORDER 3: WEB SERVER (Top Right) ===================== -->
+            <g transform="translate(950, 400)">
+                <g class="isometric-hover">
+                    <polygon points="-60,30 0,60 60,30 0,0" fill="rgba(24, 29, 36, 0.1)"/>
+                    
+                    <!-- Server Rack -->
+                    <polygon points="0,45 60,15 60,-85 0,-55" fill="#0075DB" />
+                    <polygon points="-60,15 0,45 0,-55 -60,-85" fill="#181D24" />
+                    <polygon points="-60,-85 0,-55 60,-85 0,-115" fill="#757D86" />
+                    
+                    <!-- Server Blades Details -->
+                    <polygon points="-55,-75 -5,-50 -5,-40 -55,-65" fill="#2EB4FF" opacity="0.8"/>
+                    <polygon points="-55,-55 -5,-30 -5,-20 -55,-45" fill="#2EB4FF" opacity="0.8"/>
+                    <polygon points="-55,-35 -5,-10 -5,0 -55,-25" fill="#2EB4FF" opacity="0.8"/>
+                    <circle cx="-15" cy="-45" r="2.5" fill="#FFFFFF" filter="url(#glow)"/>
+                    <circle cx="-15" cy="-25" r="2.5" fill="#FFFFFF" filter="url(#glow)"/>
+                    <circle cx="-15" cy="-5" r="2.5" fill="#FFFFFF" filter="url(#glow)"/>
+                    
+                    <text x="0" y="-140" font-family="system-ui" font-size="16" font-weight="bold" fill="#181D24" text-anchor="middle">שרת היעד (google.com)</text>
+                    <rect x="-50" y="70" width="100" height="26" rx="4" fill="#181D24" opacity="0.8"/>
+                    <text x="0" y="88" font-family="monospace" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle" dir="ltr">8.8.8.8</text>
+                </g>
+            </g>
+
+            <!-- ===================== DOM ORDER 4: LOCAL DNS (Mid Left) ===================== -->
+            <g transform="translate(350, 400)">
+                <g class="isometric-hover">
+                    <polygon points="-70,35 0,70 70,35 0,0" fill="rgba(24, 29, 36, 0.1)"/>
+                    
+                    <!-- ISP Router/Server Body -->
+                    <polygon points="0,55 70,20 70,-40 0,-5" fill="#0075DB" />
+                    <polygon points="-70,20 0,55 0,-5 -70,-40" fill="#181D24" />
+                    <polygon points="-70,-40 0,-5 70,-40 0,-75" fill="#757D86" />
+                    
+                    <!-- Details -->
+                    <polygon points="-60,-30 0,0 50,-25 -10,-55" fill="#2EB4FF" opacity="0.2"/>
+                    <text x="0" y="-20" font-family="system-ui" font-size="14" font-weight="bold" fill="#2EB4FF" text-anchor="middle">ISP Resolver</text>
+                    
+                    <circle cx="-20" cy="15" r="3" fill="#2EB4FF" filter="url(#glow)" id="local-dns-light"/>
+                    <circle cx="-10" cy="20" r="3" fill="#757D86" />
+                    
+                    <text x="0" y="-100" font-family="system-ui" font-size="16" font-weight="bold" fill="#181D24" text-anchor="middle">שרת DNS מקומי</text>
+                    <text x="0" y="-80" font-family="system-ui" font-size="13" fill="#757D86" text-anchor="middle">(של ספק האינטרנט שלך)</text>
+                </g>
+            </g>
+
+            <!-- ===================== DOM ORDER 5: DNS CACHE TABLE ===================== -->
+            <!-- Floats above the Local DNS Server -->
+            <g id="dns-table" opacity="0" transform="translate(100, 70) scale(0.9)">
+                <rect x="0" y="0" width="380" height="150" rx="12" fill="#FFFFFF" filter="url(#shadow)" stroke="#0075DB" stroke-width="3"/>
+                <rect x="0" y="0" width="380" height="40" rx="12" fill="#0075DB" />
+                <rect x="0" y="20" width="380" height="20" fill="#0075DB" />
+                
+                <text x="190" y="26" font-family="system-ui" font-size="18" font-weight="bold" fill="#FFFFFF" text-anchor="middle">זיכרון מטמון (DNS Cache)</text>
+                
+                <!-- Table Headers -->
+                <text x="280" y="65" font-family="system-ui" font-size="14" font-weight="bold" fill="#757D86" text-anchor="middle">שם דומיין (Domain)</text>
+                <text x="190" y="65" font-family="system-ui" font-size="14" fill="#757D86" text-anchor="middle">→</text>
+                <text x="100" y="65" font-family="system-ui" font-size="14" font-weight="bold" fill="#757D86" text-anchor="middle">כתובת (IP)</text>
+
+                <line x1="20" y1="80" x2="360" y2="80" stroke="#757D86" stroke-opacity="0.2" stroke-width="2" />
+                
+                <!-- Dynamic Row -->
+                <g id="dns-row-1" opacity="0" style="transition: opacity 0.5s ease;">
+                    <rect x="20" y="90" width="340" height="40" rx="6" fill="#2EB4FF" opacity="0.1" id="dns-row-bg" />
+                    <text x="280" y="115" font-family="monospace" font-size="16" font-weight="bold" fill="#181D24" text-anchor="middle" dir="ltr">google.com</text>
+                    <text x="190" y="115" font-family="system-ui" font-size="18" font-weight="bold" fill="#0075DB" text-anchor="middle">⟷</text>
+                    <text x="100" y="115" font-family="monospace" font-size="16" font-weight="bold" fill="#0075DB" text-anchor="middle" dir="ltr">8.8.8.8</text>
+                </g>
+            </g>
+
+
+            <!-- ===================== DOM ORDER 6: PC (Bottom Center) ===================== -->
+            <g transform="translate(650, 550)">
+                <g class="isometric-hover">
+                    <g transform="scale(0.9)">
+                        <!-- Shadow -->
+                        <polygon points="-100,10 0,60 100,10 0,-40" fill="rgba(24, 29, 36, 0.1)"/>
+                        
+                        <!-- Base -->
+                        <polygon points="0,15 100,-35 100,-25 0,25" fill="#0075DB" />
+                        <polygon points="-100,-35 0,15 0,25 -100,-25" fill="#181D24" />
+                        <polygon points="-100,-35 0,15 100,-35 0,-85" fill="#757D86" />
+                        <polygon points="-80,-40 -5,-3 70,-40 -5,-77" fill="#181D24" opacity="0.6" />
+                        
+                        <!-- Screen Flap -->
+                        <polygon points="-100,-35 0,-85 0,-195 -100,-145" fill="#181D24" />
+                        
+                        <!-- Screen Content (Changes later) -->
+                        <polygon id="pc-screen" points="-95,-43 -5,-88 -5,-187 -95,-142" fill="#757D86" style="transition: fill 0.5s ease;" /> 
+                        
+                        <!-- Floating Browser Bar -->
+                        <g transform="translate(0, -260)">
+                            <rect x="-90" y="0" width="180" height="34" rx="17" fill="#FFFFFF" filter="url(#shadow)" stroke="#2EB4FF" stroke-width="2"/>
+                            <text x="0" y="22" font-family="monospace" font-size="14" font-weight="bold" fill="#181D24" text-anchor="middle" dir="ltr">www.google.com</text>
+                            <circle cx="-70" cy="17" r="5" fill="#757D86" opacity="0.5"/>
+                        </g>
+
+                        <text x="0" y="65" font-family="system-ui" font-size="18" font-weight="bold" fill="#181D24" text-anchor="middle">המחשב שלך</text>
+                    </g>
+                </g>
+            </g>
+
+            <!-- ===================== DATA PACKET ===================== -->
+            <!-- Initialized at PC position -->
+            <g id="packet-container" style="opacity: 0; transform: translate(650px, 550px);">
+                <g id="packet-visual" transform="translate(0, -40)">
+                    <polygon points="0,12 24,-12 24,6 0,30" fill="#0075DB" id="packet-right" />
+                    <polygon points="-24,-12 0,12 0,30 -24,6" fill="#181D24" id="packet-left" />
+                    <polygon points="-24,-12 0,12 24,-12 0,-36" fill="#2EB4FF" id="packet-top" />
+                    
+                    <rect x="-75" y="-75" width="150" height="26" rx="6" fill="#FFFFFF" filter="url(#shadow)" opacity="0.95" />
+                    <text id="packet-label" x="0" y="-57" font-family="monospace" font-size="13" font-weight="bold" fill="#181D24" text-anchor="middle" dir="ltr">Q: google.com</text>
+                </g>
+            </g>
+        </svg>
+    </div>
+
+    <!-- ===================== UI PANEL ===================== -->
+    <div class="ui-panel">
+        <div class="step-indicator">
+            <div class="dot active" id="dot-0"></div>
+            <div class="dot" id="dot-1"></div>
+            <div class="dot" id="dot-2"></div>
+            <div class="dot" id="dot-3"></div>
+            <div class="dot" id="dot-4"></div>
+            <div class="dot" id="dot-5"></div>
+            <div class="dot" id="dot-6"></div>
+        </div>
+        <h2 id="ui-title">מה זה DNS? (Domain Name System)</h2>
+        <p id="ui-desc">מחשבים מדברים ביניהם רק באמצעות מספרים (כתובות IP), אבל בני אדם זוכרים שמות (כמו google.com). ה-DNS הוא "ספר הטלפונים" של האינטרנט שמתרגם את השמות למספרים.</p>
+        <div class="controls">
+            <button id="next-btn" onclick="nextStep()">התחל סימולציה</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- EXACT Layout Positions for Routing ---
+    const pos = {
+        pc: { x: 650, y: 550 },
+        localDns: { x: 350, y: 400 },
+        globalDns: { x: 150, y: 300 },
+        webServer: { x: 950, y: 400 }
+    };
+    
+    // Palette
+    const colors = {
+        query: '#757D86',    // Gray for asking a question
+        resolve: '#0075DB',  // Dark Blue for processing/searching
+        answer: '#2EB4FF',   // Light Blue for returning the IP
+        http: '#181D24'      // Dark for actual website connection
+    };
+
+    let currentStep = 0;
+    let isAnimating = false;
+
+    // DOM Elements
+    const packetContainer = document.getElementById('packet-container');
+    const packetLabel = document.getElementById('packet-label');
+    const packetTop = document.getElementById('packet-top');
+    
+    const uiTitle = document.getElementById('ui-title');
+    const uiDesc = document.getElementById('ui-desc');
+    const nextBtn = document.getElementById('next-btn');
+    
+    const dnsTable = document.getElementById('dns-table');
+    const dnsRow1 = document.getElementById('dns-row-1');
+    const dnsRowBg = document.getElementById('dns-row-bg');
+    
+    const localDnsLight = document.getElementById('local-dns-light');
+    const pcScreen = document.getElementById('pc-screen');
+    const webWire = document.getElementById('web-wire');
+
+    // --- State Machine ---
+    const stepsData = [
+        {
+            title: "מה זה DNS? (Domain Name System)",
+            desc: "מחשבים מדברים ביניהם רק באמצעות מספרים (כתובות IP), אבל בני אדם זוכרים שמות (כמו google.com). ה-DNS הוא 'ספר הטלפונים' של האינטרנט שמתרגם את השמות למספרים.",
+            btn: "התחל סימולציה",
+            action: () => { resetVisuals(); }
+        },
+        {
+            title: "שלב 1: השאילתה (The Query)",
+            desc: "הקלדת בדפדפן 'google.com' ולחצת אנטר. לפני שהמחשב יכול להתחבר, הוא חייב לדעת את ה-IP. הוא שולח שאילתה לשרת ה-DNS של ספק האינטרנט שלך: 'מה הכתובת של גוגל?'.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                triggerPacketMultiPath([pos.pc, pos.localDns], 'Q: google.com', colors.query, () => {
+                    localDnsLight.setAttribute('fill', colors.query);
+                });
+            }
+        },
+        {
+            title: "שלב 2: חיפוש רקורסיבי (Recursive Search)",
+            desc: "השרת המקומי בודק בזיכרון שלו ולא מוצא את התשובה. הוא נאלץ לצאת אל האינטרנט ולשאול את 'מערכת ה-DNS העולמית' (שרתי שורש ושרתי סיומות) את אותה השאלה.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                showDnsTable();
+                setTimeout(() => {
+                    triggerPacketMultiPath([pos.localDns, pos.globalDns], 'Q: google.com', colors.resolve, () => {
+                        localDnsLight.setAttribute('fill', colors.resolve);
+                    });
+                }, 1000);
+            }
+        },
+        {
+            title: "שלב 3: התשובה (The Resolution)",
+            desc: "השרתים העולמיים מוצאים את הרשומה המדויקת של האתר, ומחזירים לשרת המקומי את התשובה הסופית: 'הכתובת של google.com היא 8.8.8.8'.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                hideDnsTable();
+                triggerPacketMultiPath([pos.globalDns, pos.localDns], 'IP: 8.8.8.8', colors.answer, () => {
+                    localDnsLight.setAttribute('fill', colors.answer);
+                });
+            }
+        },
+        {
+            title: "שלב 4: זיכרון מטמון (DNS Cache)",
+            desc: "השרת המקומי חכם. כדי לא לשאול שוב פעם הבאה, הוא שומר את התשובה ב'טבלת המטמון' שלו, ומיד מעביר את התשובה אליך למחשב.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                showDnsTable();
+                setTimeout(() => {
+                    highlightDnsRow();
+                    setTimeout(() => {
+                        triggerPacketMultiPath([pos.localDns, pos.pc], 'IP: 8.8.8.8', colors.answer, () => {
+                            setTimeout(hideDnsTable, 800);
+                        });
+                    }, 800);
+                }, 500);
+            }
+        },
+        {
+            title: "שלב 5: התחברות לשרת (HTTP Request)",
+            desc: "סוף סוף! למחשב שלך יש את ה-IP. עכשיו הוא פונה ישירות לשרת היעד של גוגל (8.8.8.8) ומבקש ממנו את קובץ האתר (HTTP GET). תפקיד ה-DNS הסתיים.",
+            btn: "המשך לשלב הבא",
+            action: () => { 
+                // Highlight the wire
+                webWire.style.transition = 'opacity 0.5s ease, stroke-dasharray 0.5s ease';
+                webWire.style.opacity = '1';
+                webWire.setAttribute('stroke-dasharray', '0'); // Make it solid
+
+                triggerPacketMultiPath([pos.pc, pos.webServer], 'GET / HTTP', colors.http);
+            }
+        },
+        {
+            title: "שלב 6: טעינת האתר",
+            desc: "השרת של גוגל מאשר את הבקשה ומחזיר למחשב שלך את התוכן. המסך נדלק והאתר מופיע מולך בתוך חלקיק שנייה. קסם האינטרנט בפעולה!",
+            btn: "התחל מחדש",
+            action: () => { 
+                triggerPacketMultiPath([pos.webServer, pos.pc], '200 OK (Data)', colors.answer, () => {
+                    pcScreen.setAttribute('fill', '#2EB4FF'); // Screen turns bright blue to show website loaded
+                });
+            }
+        }
+    ];
+
+    function nextStep() {
+        if (isAnimating) return;
+        currentStep++;
+        if (currentStep >= stepsData.length) currentStep = 0;
+        updateUI();
+        stepsData[currentStep].action();
+    }
+
+    function updateUI() {
+        const data = stepsData[currentStep];
+        uiTitle.innerText = data.title;
+        uiDesc.innerText = data.desc;
+        nextBtn.innerText = data.btn;
+
+        for(let i=0; i<7; i++) {
+            const dot = document.getElementById(`dot-${i}`);
+            if (i < currentStep) dot.className = "dot completed";
+            else if (i === currentStep) dot.className = "dot active";
+            else dot.className = "dot";
+        }
+    }
+
+    function triggerPacketMultiPath(waypoints, text, mainColor, onComplete) {
+        isAnimating = true;
+        nextBtn.disabled = true;
+
+        packetTop.setAttribute('fill', mainColor);
+        packetLabel.textContent = text;
+        packetLabel.style.fill = mainColor;
+
+        packetContainer.style.transition = 'none';
+        packetContainer.style.transform = `translate(${waypoints[0].x}px, ${waypoints[0].y}px)`;
+        packetContainer.style.opacity = '0';
+
+        let currentWp = 0;
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                packetContainer.style.opacity = '1';
+                moveToNextWp();
+            });
+        });
+
+        function moveToNextWp() {
+            currentWp++;
+            if (currentWp >= waypoints.length) {
+                isAnimating = false;
+                nextBtn.disabled = false;
+                if (onComplete) onComplete();
+                return;
+            }
+
+            packetContainer.style.transition = 'transform 1.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            packetContainer.style.transform = `translate(${waypoints[currentWp].x}px, ${waypoints[currentWp].y}px)`;
+
+            setTimeout(() => {
+                if (currentWp < waypoints.length - 1) setTimeout(moveToNextWp, 100);
+                else moveToNextWp();
+            }, 1400);
+        }
+    }
+
+    function showDnsTable() {
+        dnsTable.style.opacity = '1';
+        dnsTable.style.transform = 'translate(100px, 50px) scale(0.9)';
+        setTimeout(() => dnsRow1.style.opacity = '1', 300);
+    }
+
+    function hideDnsTable() {
+        dnsTable.style.opacity = '0';
+        dnsTable.style.transform = 'translate(100px, 70px) scale(0.85)';
+        dnsRow1.style.opacity = '0';
+        dnsRowBg.setAttribute('fill', '#2EB4FF');
+    }
+
+    function highlightDnsRow() {
+        dnsRowBg.setAttribute('fill', '#0075DB');
+        dnsRowBg.setAttribute('opacity', '0.3');
+        setTimeout(() => {
+            dnsRowBg.setAttribute('fill', '#2EB4FF');
+            dnsRowBg.setAttribute('opacity', '0.1');
+        }, 500);
+    }
+
+    function resetVisuals() {
+        packetContainer.style.transition = 'none';
+        packetContainer.style.opacity = '0';
+        packetContainer.style.transform = `translate(${pos.pc.x}px, ${pos.pc.y}px)`;
+        hideDnsTable();
+        localDnsLight.setAttribute('fill', '#2EB4FF');
+        pcScreen.setAttribute('fill', '#757D86');
+        
+        webWire.style.transition = 'none';
+        webWire.setAttribute('stroke-dasharray', '8 6');
+        webWire.style.opacity = '0.2';
+    }
+
+    // Initialize UI
+    updateUI();
+</script>
+</body>
+</html>
